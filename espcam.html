@@ -1,0 +1,1861 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32-CAM Viewer</title>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #4a6fa5;
+            --secondary: #166088;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --info: #17a2b8;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --gray: #6c757d;
+            --border: #dee2e6;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        /* Header & Navigation */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            color: var(--primary);
+            font-size: 28px;
+        }
+        
+        .logo-text {
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .nav-menu {
+            display: flex;
+            gap: 25px;
+        }
+        
+        .nav-link {
+            text-decoration: none;
+            color: var(--gray);
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            color: var(--primary);
+            background: rgba(74, 111, 165, 0.1);
+        }
+        
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 25px;
+        }
+        
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Video Panel */
+        .video-panel {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .video-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .video-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .video-container {
+            position: relative;
+            background: #000;
+            min-height: 500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #videoStream {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .stream-placeholder {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+        }
+        
+        .stream-placeholder i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            color: var(--gray);
+        }
+        
+        .video-controls {
+            padding: 20px;
+            background: var(--light);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+        }
+        
+        /* Control Panel */
+        .control-panel {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .panel-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .panel-content {
+            padding: 25px;
+        }
+        
+        /* Connection Section */
+        .connection-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: var(--gray);
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Poppins', sans-serif;
+            transition: all 0.3s ease;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
+        }
+        
+        /* Button Styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(74, 111, 165, 0.3);
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: var(--warning);
+            color: var(--dark);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+        
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-block {
+            width: 100%;
+        }
+        
+        /* Status Indicators */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-connected {
+            background: rgba(40, 167, 69, 0.15);
+            color: var(--success);
+        }
+        
+        .status-disconnected {
+            background: rgba(220, 53, 69, 0.15);
+            color: var(--danger);
+        }
+        
+        /* Camera List */
+        .camera-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .camera-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background: var(--light);
+            border-radius: 10px;
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+        
+        .camera-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        
+        .camera-info h4 {
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        
+        .camera-info p {
+            font-size: 12px;
+            color: var(--gray);
+        }
+        
+        .camera-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        /* Settings */
+        .settings-section {
+            margin-bottom: 25px;
+        }
+        
+        .slider-group {
+            margin-bottom: 20px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .slider-value {
+            color: var(--primary);
+            font-weight: 600;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--border);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .stat-card {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 9999;
+        }
+        
+        .toast {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateX(100%);
+            opacity: 0;
+            animation: slideIn 0.3s ease forwards;
+        }
+        
+        .toast-success {
+            border-left: 4px solid var(--success);
+        }
+        
+        .toast-error {
+            border-left: 4px solid var(--danger);
+        }
+        
+        .toast-warning {
+            border-left: 4px solid var(--warning);
+        }
+        
+        .toast-info {
+            border-left: 4px solid var(--info);
+        }
+        
+        @keyframes slideIn {
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-body {
+            padding: 30px;
+        }
+        
+        .modal-footer {
+            padding: 20px;
+            background: var(--light);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-container {
+                flex-direction: column;
+                height: auto;
+                padding: 15px;
+            }
+            
+            .nav-menu {
+                margin-top: 15px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .video-controls {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Loading Spinner */
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Connection Methods */
+        .connection-methods {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .method-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .method-btn:hover, .method-btn.active {
+            border-color: var(--primary);
+            background: rgba(74, 111, 165, 0.05);
+        }
+        
+        .method-icon {
+            font-size: 24px;
+            color: var(--primary);
+        }
+        
+        .method-name {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Home Page - TRỐNG HOÀN TOÀN */
+        .home-container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+            min-height: 70vh;
+        }
+
+        .blank-home {
+            text-align: center;
+            padding: 100px 20px;
+        }
+
+        .blank-home-icon {
+            font-size: 100px;
+            color: rgba(74, 111, 165, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .blank-home-text {
+            color: rgba(108, 117, 125, 0.5);
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        /* Dashboard Page */
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        .dashboard-content {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            padding: 40px;
+            min-height: 600px;
+        }
+
+        .dashboard-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="nav-container">
+            <div class="logo">
+                <i class="fas fa-video logo-icon"></i>
+                <span class="logo-text">ESP32-CAM Viewer</span>
+            </div>
+            <nav class="nav-menu">
+                <a href="index.html" class="nav-link">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+                <a href="dashboard.html" class="nav-link">
+                    <i class="fas fa-tv"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="camera.html" class="nav-link">
+                    <i class="fas fa-camera"></i>
+                    <span>Camera View</span>
+                </a>
+            </nav>
+        </div>
+    </header>
+    
+    <!-- Main Content - Camera View -->
+    <div class="container" id="cameraContainer" style="display: none;">
+        <!-- Video Panel -->
+        <div class="video-panel">
+            <div class="video-header">
+                <div class="video-title">
+                    <i class="fas fa-video"></i>
+                    <h2>Live Camera Stream</h2>
+                </div>
+                <div class="status-indicator" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    <span>Disconnected</span>
+                </div>
+            </div>
+            
+            <div class="video-container" id="videoContainer">
+                <img id="videoStream" alt="Live Stream" style="display: none;">
+                <div class="stream-placeholder" id="streamPlaceholder">
+                    <i class="fas fa-video-slash"></i>
+                    <h3>No Active Stream</h3>
+                    <p>Connect to an ESP32-CAM to start streaming</p>
+                </div>
+            </div>
+            
+            <div class="video-controls">
+                <button class="btn btn-primary" onclick="startStream()">
+                    <i class="fas fa-play"></i>
+                    Start Stream
+                </button>
+                <button class="btn btn-danger" onclick="stopStream()">
+                    <i class="fas fa-stop"></i>
+                    Stop Stream
+                </button>
+                <button class="btn btn-success" onclick="captureImage()">
+                    <i class="fas fa-camera"></i>
+                    Capture
+                </button>
+                <button class="btn btn-warning" onclick="toggleFlash()">
+                    <i class="fas fa-lightbulb"></i>
+                    Flash
+                </button>
+                <button class="btn btn-outline" onclick="takeSnapshot()">
+                    <i class="fas fa-download"></i>
+                    Snapshot
+                </button>
+                <button class="btn btn-outline" onclick="fullscreen()">
+                    <i class="fas fa-expand"></i>
+                    Fullscreen
+                </button>
+            </div>
+        </div>
+        
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="panel-header">
+                <i class="fas fa-sliders-h"></i>
+                Control Panel
+            </div>
+            
+            <div class="panel-content">
+                <!-- Connection Section -->
+                <div class="connection-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-wifi"></i>
+                        Camera Connection
+                    </h3>
+                    
+                    <div class="connection-methods">
+                        <div class="method-btn active" data-method="direct" onclick="setConnectionMethod('direct')">
+                            <i class="fas fa-ethernet method-icon"></i>
+                            <span class="method-name">Direct IP</span>
+                        </div>
+                        <div class="method-btn" data-method="mdns" onclick="setConnectionMethod('mdns')">
+                            <i class="fas fa-network-wired method-icon"></i>
+                            <span class="method-name">mDNS</span>
+                        </div>
+                        <div class="method-btn" data-method="cloud" onclick="setConnectionMethod('cloud')">
+                            <i class="fas fa-cloud method-icon"></i>
+                            <span class="method-name">Cloud</span>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Camera IP Address:</label>
+                        <input type="text" id="cameraIp" class="input-field" 
+                               placeholder="192.168.1.28 or esp32-cam.local" 
+                               value="192.168.1.28">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Port (Optional):</label>
+                        <input type="text" id="cameraPort" class="input-field" 
+                               placeholder="80" value="80">
+                    </div>
+                    
+                    <button class="btn btn-primary btn-block" onclick="connectCamera()">
+                        <i class="fas fa-plug"></i>
+                        Connect to Camera
+                    </button>
+                    
+                    <button class="btn btn-outline btn-block" onclick="scanNetwork()" style="margin-top: 10px;">
+                        <i class="fas fa-search"></i>
+                        Scan Network for Cameras
+                    </button>
+                </div>
+                
+                <!-- Camera List -->
+                <div class="connection-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-history"></i>
+                        Saved Cameras
+                    </h3>
+                    <div class="camera-list" id="cameraList">
+                        <!-- Dynamic content -->
+                    </div>
+                    <button class="btn btn-outline btn-block" onclick="clearSavedCameras()">
+                        <i class="fas fa-trash"></i>
+                        Clear All
+                    </button>
+                </div>
+                
+                <!-- Settings -->
+                <div class="settings-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-cog"></i>
+                        Camera Settings
+                    </h3>
+                    
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Quality</span>
+                            <span class="slider-value" id="qualityValue">10</span>
+                        </div>
+                        <input type="range" class="slider" id="qualitySlider" 
+                               min="1" max="63" value="10" onchange="updateQuality()">
+                    </div>
+                    
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Brightness</span>
+                            <span class="slider-value" id="brightnessValue">0</span>
+                        </div>
+                        <input type="range" class="slider" id="brightnessSlider" 
+                               min="-2" max="2" value="0" onchange="updateBrightness()">
+                    </div>
+                    
+                    <div class="slider-group">
+                        <label class="input-label">Resolution:</label>
+                        <select id="resolutionSelect" class="input-field" onchange="updateResolution()">
+                            <option value="7">QVGA (320x240)</option>
+                            <option value="8">CIF (400x296)</option>
+                            <option value="9">VGA (640x480)</option>
+                            <option value="10" selected>SVGA (800x600)</option>
+                            <option value="11">XGA (1024x768)</option>
+                            <option value="12">SXGA (1280x1024)</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn btn-primary btn-block" onclick="applySettings()">
+                        <i class="fas fa-check"></i>
+                        Apply Settings
+                    </button>
+                </div>
+                
+                <!-- Statistics -->
+                <div class="settings-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Statistics
+                    </h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="statFps">0</div>
+                            <div class="stat-label">FPS</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statLatency">-</div>
+                            <div class="stat-label">LATENCY</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statUptime">0</div>
+                            <div class="stat-label">UPTIME (s)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statHeap">-</div>
+                            <div class="stat-label">FREE HEAP</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="settings-section">
+                    <h3 class="section-title">
+                        <i class="fas fa-bolt"></i>
+                        Quick Actions
+                    </h3>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                        <button class="btn btn-warning" onclick="rebootCamera()">
+                            <i class="fas fa-redo"></i>
+                            Reboot
+                        </button>
+                        <button class="btn btn-danger" onclick="resetCamera()">
+                            <i class="fas fa-undo"></i>
+                            Reset
+                        </button>
+                        <button class="btn btn-success" onclick="showQRCode()">
+                            <i class="fas fa-qrcode"></i>
+                            QR Code
+                        </button>
+                        <button class="btn btn-info" onclick="shareCamera()">
+                            <i class="fas fa-share-alt"></i>
+                            Share
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Home Page - TRANG TRỐNG -->
+    <div class="home-container" id="homeContainer">
+        <div class="blank-home">
+            <div class="blank-home-icon">
+                <i class="fas fa-home"></i>
+            </div>
+            <div class="blank-home-text">
+                TRANG CHỦ
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div class="dashboard-container" id="dashboardContainer" style="display: none;">
+        <div class="dashboard-content">
+            <h2 class="dashboard-title">
+                <i class="fas fa-tv"></i>
+                Dashboard
+            </h2>
+            <p>Dashboard page content will be here.</p>
+        </div>
+    </div>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <!-- Screenshot Modal -->
+    <div class="modal" id="screenshotModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-camera"></i> Captured Image</h3>
+                <button onclick="closeScreenshot()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <img id="screenshotImage" style="width:100%;border-radius:10px;">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeScreenshot()">Close</button>
+                <button class="btn btn-primary" onclick="downloadScreenshot()">Download</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- QR Code Modal -->
+    <div class="modal" id="qrModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-qrcode"></i> Camera QR Code</h3>
+                <button onclick="closeQRCode()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" style="text-align:center;">
+                <canvas id="qrCanvas" width="200" height="200" style="margin:0 auto 20px;display:block;"></canvas>
+                <p>Scan this QR code to connect to the camera</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript -->
+    <script>
+        // ================= CONFIGURATION =================
+        const APP_CONFIG = {
+            version: '2.1.0',
+            localStorageKeys: {
+                cameraHistory: 'esp32cam_history',
+                settings: 'esp32cam_settings',
+                lastCamera: 'esp32cam_last_camera'
+            },
+            defaultSettings: {
+                quality: 10,
+                brightness: 0,
+                contrast: 0,
+                saturation: 0,
+                framesize: 10,
+                autoConnect: true,
+                showFPS: true
+            },
+            apiEndpoints: {
+                stream: '/stream',
+                capture: '/capture',
+                status: '/status',
+                control: '/control',
+                info: '/info',
+                reboot: '/reboot',
+                wifiScan: '/wifi-scan'
+            }
+        };
+        
+        // ================= STATE MANAGEMENT =================
+        let state = {
+            currentCamera: null,
+            isConnected: false,
+            isStreaming: false,
+            connectionMethod: 'direct',
+            fps: 0,
+            latency: 0,
+            cameraList: [],
+            settings: {},
+            streamInterval: null,
+            fpsInterval: null,
+            statsInterval: null
+        };
+        
+        // ================= PAGE ROUTING =================
+        function handlePageRouting() {
+            // Lấy trang hiện tại từ URL
+            let currentPage = 'home'; // mặc định
+            
+            // Kiểm tra URL hiện tại
+            const path = window.location.pathname;
+            const filename = path.substring(path.lastIndexOf('/') + 1);
+            const hash = window.location.hash;
+            
+            if (filename === 'camera.html' || hash === '#camera') {
+                currentPage = 'camera';
+            } else if (filename === 'dashboard.html' || hash === '#dashboard') {
+                currentPage = 'dashboard';
+            }
+            
+            // Ẩn tất cả các container
+            document.getElementById('cameraContainer').style.display = 'none';
+            document.getElementById('homeContainer').style.display = 'none';
+            document.getElementById('dashboardContainer').style.display = 'none';
+            
+            // Xóa active class từ tất cả các nav link
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Hiển thị container tương ứng và set active cho nav link
+            switch(currentPage) {
+                case 'camera':
+                    document.getElementById('cameraContainer').style.display = 'grid';
+                    document.querySelector('a[href*="camera"]').classList.add('active');
+                    initializeCameraPage();
+                    break;
+                case 'dashboard':
+                    document.getElementById('dashboardContainer').style.display = 'block';
+                    document.querySelector('a[href*="dashboard"]').classList.add('active');
+                    break;
+                default: // home
+                    document.getElementById('homeContainer').style.display = 'block';
+                    document.querySelector('a[href*="index"], a[href*="home"]').classList.add('active');
+                    break;
+            }
+        }
+        
+        // ================= INITIALIZATION =================
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('ESP32-CAM Viewer initialized');
+            
+            // Xử lý routing trang
+            handlePageRouting();
+            
+            // Xử lý click vào navigation links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const href = this.getAttribute('href');
+                    
+                    // Cập nhật URL hash để routing
+                    if (href.includes('camera')) {
+                        window.location.hash = '#camera';
+                    } else if (href.includes('dashboard')) {
+                        window.location.hash = '#dashboard';
+                    } else {
+                        window.location.hash = '';
+                    }
+                    
+                    // Cập nhật trang
+                    handlePageRouting();
+                });
+            });
+            
+            // Xử lý thay đổi hash trong URL
+            window.addEventListener('hashchange', handlePageRouting);
+        });
+        
+        function initializeCameraPage() {
+            // Load settings
+            loadSettings();
+            
+            // Load camera history
+            loadCameraHistory();
+            
+            // Load last connected camera
+            loadLastCamera();
+            
+            // Initialize event listeners
+            initEventListeners();
+            
+            // Start statistics update
+            startStatsUpdate();
+            
+            // Auto-connect if enabled
+            if (state.settings.autoConnect && state.currentCamera) {
+                setTimeout(() => {
+                    connectToCamera(state.currentCamera);
+                }, 1000);
+            }
+        }
+        
+        // ================= EVENT LISTENERS =================
+        function initEventListeners() {
+            // Camera IP input - auto-detect local IP patterns
+            document.getElementById('cameraIp').addEventListener('input', function(e) {
+                const value = e.target.value.trim();
+                if (value.includes('.local')) {
+                    setConnectionMethod('mdns');
+                } else if (value.includes('.') && !value.startsWith('192.168.')) {
+                    setConnectionMethod('cloud');
+                }
+            });
+            
+            // Enter key to connect
+            document.getElementById('cameraIp').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    connectCamera();
+                }
+            });
+            
+            // Video stream events
+            const videoStream = document.getElementById('videoStream');
+            videoStream.onload = () => {
+                updateConnectionStatus(true);
+                showToast('Stream started successfully', 'success');
+            };
+            
+            videoStream.onerror = () => {
+                updateConnectionStatus(false);
+                showToast('Stream error - check connection', 'error');
+                stopStream();
+            };
+            
+            // Window events
+            window.addEventListener('beforeunload', function() {
+                stopStream();
+            });
+            
+            // Fullscreen change
+            document.addEventListener('fullscreenchange', function() {
+                if (!document.fullscreenElement) {
+                    document.getElementById('videoStream').style.width = '100%';
+                }
+            });
+        }
+        
+        // ================= CONNECTION MANAGEMENT =================
+        function setConnectionMethod(method) {
+            state.connectionMethod = method;
+            
+            // Update UI
+            document.querySelectorAll('.method-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-method="${method}"]`).classList.add('active');
+            
+            // Update placeholder text
+            const ipInput = document.getElementById('cameraIp');
+            switch(method) {
+                case 'direct':
+                    ipInput.placeholder = '192.168.1.28';
+                    break;
+                case 'mdns':
+                    ipInput.placeholder = 'esp32-cam.local';
+                    break;
+                case 'cloud':
+                    ipInput.placeholder = 'your-domain.com or public-ip';
+                    break;
+            }
+            
+            showToast(`Connection method set to: ${method}`, 'info');
+        }
+        
+        function connectCamera() {
+            const ip = document.getElementById('cameraIp').value.trim();
+            const port = document.getElementById('cameraPort').value.trim() || '80';
+            
+            if (!ip) {
+                showToast('Please enter camera IP address', 'warning');
+                return;
+            }
+            
+            // Build camera URL based on connection method
+            let cameraUrl;
+            switch(state.connectionMethod) {
+                case 'direct':
+                case 'cloud':
+                    cameraUrl = `http://${ip}:${port}`;
+                    break;
+                case 'mdns':
+                    cameraUrl = `http://${ip}`;
+                    break;
+            }
+            
+            connectToCamera(cameraUrl);
+        }
+        
+        async function connectToCamera(cameraUrl) {
+            showToast('Connecting to camera...', 'info');
+            updateConnectionStatus(false);
+            
+            try {
+                // Test connection first
+                const testUrl = cameraUrl + APP_CONFIG.apiEndpoints.status;
+                const response = await fetchWithTimeout(testUrl, { timeout: 5000 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Save camera to history
+                saveCameraToHistory(cameraUrl, data.camera_name || 'ESP32-CAM');
+                
+                // Update state
+                state.currentCamera = cameraUrl;
+                state.isConnected = true;
+                
+                // Update UI
+                document.getElementById('cameraIp').value = 
+                    cameraUrl.replace('http://', '').split(':')[0];
+                
+                // Update camera info
+                updateCameraInfo(data);
+                
+                // Start stream automatically
+                startStream();
+                
+                // Start monitoring
+                startCameraMonitoring();
+                
+                showToast(`Connected to ${data.camera_name || 'ESP32-CAM'}`, 'success');
+                
+            } catch (error) {
+                console.error('Connection failed:', error);
+                showToast(`Connection failed: ${error.message}`, 'error');
+                updateConnectionStatus(false);
+            }
+        }
+        
+        // ================= STREAM MANAGEMENT =================
+        function startStream() {
+            if (!state.currentCamera || state.isStreaming) {
+                return;
+            }
+            
+            stopStream(); // Stop any existing stream
+            
+            const streamUrl = state.currentCamera + APP_CONFIG.apiEndpoints.stream + '?t=' + Date.now();
+            const videoElement = document.getElementById('videoStream');
+            const placeholder = document.getElementById('streamPlaceholder');
+            
+            // Show video, hide placeholder
+            videoElement.style.display = 'block';
+            placeholder.style.display = 'none';
+            videoElement.src = streamUrl;
+            
+            state.isStreaming = true;
+            updateConnectionStatus(true);
+            
+            // Start FPS counter
+            startFPSCounter();
+            
+            showToast('Live stream started', 'success');
+        }
+        
+        function stopStream() {
+            const videoElement = document.getElementById('videoStream');
+            const placeholder = document.getElementById('streamPlaceholder');
+            
+            videoElement.src = '';
+            videoElement.style.display = 'none';
+            placeholder.style.display = 'flex';
+            
+            state.isStreaming = false;
+            
+            // Stop intervals
+            if (state.streamInterval) {
+                clearInterval(state.streamInterval);
+                state.streamInterval = null;
+            }
+            
+            if (state.fpsInterval) {
+                clearInterval(state.fpsInterval);
+                state.fpsInterval = null;
+            }
+            
+            showToast('Stream stopped', 'info');
+        }
+        
+        // ================= CAMERA CONTROL =================
+        async function captureImage() {
+            if (!state.currentCamera) {
+                showToast('Not connected to camera', 'warning');
+                return;
+            }
+            
+            try {
+                const captureUrl = state.currentCamera + APP_CONFIG.apiEndpoints.capture + '?_=' + Date.now();
+                
+                // Show loading
+                showToast('Capturing image...', 'info');
+                
+                // Fetch image
+                const response = await fetch(captureUrl);
+                if (!response.ok) throw new Error('Capture failed');
+                
+                // Get image as blob
+                const blob = await response.blob();
+                const imageUrl = URL.createObjectURL(blob);
+                
+                // Show in modal
+                document.getElementById('screenshotImage').src = imageUrl;
+                document.getElementById('screenshotModal').style.display = 'flex';
+                
+                showToast('Image captured successfully', 'success');
+                
+            } catch (error) {
+                console.error('Capture error:', error);
+                showToast('Failed to capture image', 'error');
+            }
+        }
+        
+        function toggleFlash() {
+            if (!state.currentCamera) return;
+            
+            // Toggle flash state
+            const flashState = !document.querySelector('.btn-warning').classList.contains('active');
+            
+            // Send control command
+            sendControlCommand('flash', flashState ? '1' : '0')
+                .then(() => {
+                    const btn = document.querySelector('.btn-warning');
+                    if (flashState) {
+                        btn.classList.add('active');
+                        btn.innerHTML = '<i class="fas fa-lightbulb"></i> Flash ON';
+                        showToast('Flash turned ON', 'success');
+                    } else {
+                        btn.classList.remove('active');
+                        btn.innerHTML = '<i class="fas fa-lightbulb"></i> Flash';
+                        showToast('Flash turned OFF', 'info');
+                    }
+                })
+                .catch(error => {
+                    showToast('Failed to control flash', 'error');
+                });
+        }
+        
+        function takeSnapshot() {
+            if (!state.currentCamera) return;
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `esp32-capture-${timestamp}.jpg`;
+            const captureUrl = state.currentCamera + APP_CONFIG.apiEndpoints.capture + '?_=' + Date.now();
+            
+            // Create download link
+            const link = document.createElement('a');
+            link.href = captureUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast('Image downloaded', 'success');
+        }
+        
+        async function sendControlCommand(param, value) {
+            if (!state.currentCamera) return;
+            
+            const controlUrl = `${state.currentCamera}${APP_CONFIG.apiEndpoints.control}?${param}=${value}`;
+            const response = await fetch(controlUrl);
+            return response.json();
+        }
+        
+        // ================= SETTINGS MANAGEMENT =================
+        function updateQuality() {
+            const value = document.getElementById('qualitySlider').value;
+            document.getElementById('qualityValue').textContent = value;
+            state.settings.quality = parseInt(value);
+        }
+        
+        function updateBrightness() {
+            const value = document.getElementById('brightnessSlider').value;
+            document.getElementById('brightnessValue').textContent = value;
+            state.settings.brightness = parseInt(value);
+        }
+        
+        function updateResolution() {
+            const value = document.getElementById('resolutionSelect').value;
+            state.settings.framesize = parseInt(value);
+        }
+        
+        async function applySettings() {
+            if (!state.currentCamera) {
+                showToast('Not connected to camera', 'warning');
+                return;
+            }
+            
+            try {
+                // Build query string
+                const params = new URLSearchParams({
+                    quality: state.settings.quality,
+                    brightness: state.settings.brightness,
+                    framesize: state.settings.framesize
+                });
+                
+                const controlUrl = `${state.currentCamera}${APP_CONFIG.apiEndpoints.control}?${params}`;
+                const response = await fetch(controlUrl);
+                const result = await response.json();
+                
+                // Save settings
+                saveSettings();
+                
+                showToast('Settings applied successfully', 'success');
+                
+                // Restart stream with new settings
+                if (state.isStreaming) {
+                    setTimeout(() => {
+                        stopStream();
+                        setTimeout(startStream, 500);
+                    }, 1000);
+                }
+                
+            } catch (error) {
+                showToast('Failed to apply settings', 'error');
+            }
+        }
+        
+        // ================= CAMERA HISTORY =================
+        function saveCameraToHistory(url, name) {
+            const camera = {
+                url: url,
+                name: name,
+                timestamp: Date.now(),
+                lastConnected: Date.now()
+            };
+            
+            // Remove if already exists
+            state.cameraList = state.cameraList.filter(cam => cam.url !== url);
+            
+            // Add to beginning
+            state.cameraList.unshift(camera);
+            
+            // Limit to 10 items
+            if (state.cameraList.length > 10) {
+                state.cameraList = state.cameraList.slice(0, 10);
+            }
+            
+            // Save to localStorage
+            localStorage.setItem(
+                APP_CONFIG.localStorageKeys.cameraHistory,
+                JSON.stringify(state.cameraList)
+            );
+            
+            // Save as last camera
+            localStorage.setItem(
+                APP_CONFIG.localStorageKeys.lastCamera,
+                JSON.stringify(camera)
+            );
+            
+            // Update UI
+            renderCameraList();
+        }
+        
+        function loadCameraHistory() {
+            try {
+                const saved = localStorage.getItem(APP_CONFIG.localStorageKeys.cameraHistory);
+                if (saved) {
+                    state.cameraList = JSON.parse(saved);
+                    renderCameraList();
+                }
+            } catch (error) {
+                console.error('Error loading camera history:', error);
+            }
+        }
+        
+        function loadLastCamera() {
+            try {
+                const saved = localStorage.getItem(APP_CONFIG.localStorageKeys.lastCamera);
+                if (saved) {
+                    const camera = JSON.parse(saved);
+                    state.currentCamera = camera.url;
+                    document.getElementById('cameraIp').value = 
+                        camera.url.replace('http://', '').split(':')[0];
+                }
+            } catch (error) {
+                console.error('Error loading last camera:', error);
+            }
+        }
+        
+        function renderCameraList() {
+            const container = document.getElementById('cameraList');
+            
+            if (state.cameraList.length === 0) {
+                container.innerHTML = '<p style="text-align:center;color:#666;padding:20px;">No saved cameras</p>';
+                return;
+            }
+            
+            container.innerHTML = state.cameraList.map((camera, index) => `
+                <div class="camera-item">
+                    <div class="camera-info">
+                        <h4>${camera.name}</h4>
+                        <p>${camera.url.replace('http://', '')}</p>
+                    </div>
+                    <div class="camera-actions">
+                        <button onclick="connectToCamera('${camera.url}')" 
+                                style="background:#4a6fa5;color:white;border:none;width:30px;height:30px;border-radius:5px;cursor:pointer;">
+                            <i class="fas fa-plug"></i>
+                        </button>
+                        <button onclick="removeCamera(${index})" 
+                                style="background:#dc3545;color:white;border:none;width:30px;height:30px;border-radius:5px;cursor:pointer;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function removeCamera(index) {
+            if (confirm('Remove this camera from history?')) {
+                state.cameraList.splice(index, 1);
+                localStorage.setItem(
+                    APP_CONFIG.localStorageKeys.cameraHistory,
+                    JSON.stringify(state.cameraList)
+                );
+                renderCameraList();
+                showToast('Camera removed from history', 'info');
+            }
+        }
+        
+        function clearSavedCameras() {
+            if (confirm('Clear all saved cameras?')) {
+                state.cameraList = [];
+                localStorage.removeItem(APP_CONFIG.localStorageKeys.cameraHistory);
+                localStorage.removeItem(APP_CONFIG.localStorageKeys.lastCamera);
+                renderCameraList();
+                showToast('All cameras cleared', 'info');
+            }
+        }
+        
+        // ================= SETTINGS PERSISTENCE =================
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem(APP_CONFIG.localStorageKeys.settings);
+                if (saved) {
+                    state.settings = JSON.parse(saved);
+                } else {
+                    state.settings = { ...APP_CONFIG.defaultSettings };
+                }
+                
+                // Apply to UI
+                document.getElementById('qualitySlider').value = state.settings.quality;
+                document.getElementById('qualityValue').textContent = state.settings.quality;
+                document.getElementById('brightnessSlider').value = state.settings.brightness;
+                document.getElementById('brightnessValue').textContent = state.settings.brightness;
+                document.getElementById('resolutionSelect').value = state.settings.framesize;
+                
+            } catch (error) {
+                console.error('Error loading settings:', error);
+                state.settings = { ...APP_CONFIG.defaultSettings };
+            }
+        }
+        
+        function saveSettings() {
+            try {
+                localStorage.setItem(
+                    APP_CONFIG.localStorageKeys.settings,
+                    JSON.stringify(state.settings)
+                );
+            } catch (error) {
+                console.error('Error saving settings:', error);
+            }
+        }
+        
+        // ================= UTILITY FUNCTIONS =================
+        function fetchWithTimeout(url, options = {}) {
+            const { timeout = 10000, ...fetchOptions } = options;
+            
+            return Promise.race([
+                fetch(url, fetchOptions),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Request timeout')), timeout)
+                )
+            ]);
+        }
+        
+        function updateConnectionStatus(connected) {
+            state.isConnected = connected;
+            const indicator = document.getElementById('connectionStatus');
+            
+            if (connected) {
+                indicator.className = 'status-indicator status-connected';
+                indicator.innerHTML = '<span class="status-dot"></span><span>Connected</span>';
+            } else {
+                indicator.className = 'status-indicator status-disconnected';
+                indicator.innerHTML = '<span class="status-dot"></span><span>Disconnected</span>';
+            }
+        }
+        
+        function updateCameraInfo(data) {
+            // Update stats
+            document.getElementById('statHeap').textContent = 
+                data.free_heap ? Math.round(data.free_heap / 1024) + ' KB' : '-';
+            
+            // Update other info as needed
+        }
+        
+        function startFPSCounter() {
+            let frameCount = 0;
+            
+            if (state.fpsInterval) {
+                clearInterval(state.fpsInterval);
+            }
+            
+            state.fpsInterval = setInterval(() => {
+                state.fps = frameCount;
+                document.getElementById('statFps').textContent = frameCount;
+                frameCount = 0;
+            }, 1000);
+            
+            // Count frames by monitoring video element
+            const video = document.getElementById('videoStream');
+            const observer = new MutationObserver(() => {
+                frameCount++;
+            });
+            
+            observer.observe(video, { attributes: true, attributeFilter: ['src'] });
+        }
+        
+        function startStatsUpdate() {
+            if (state.statsInterval) {
+                clearInterval(state.statsInterval);
+            }
+            
+            state.statsInterval = setInterval(async () => {
+                if (state.currentCamera && state.isConnected) {
+                    try {
+                        const startTime = Date.now();
+                        const statusUrl = state.currentCamera + APP_CONFIG.apiEndpoints.status;
+                        const response = await fetchWithTimeout(statusUrl, { timeout: 3000 });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            state.latency = Date.now() - startTime;
+                            
+                            // Update UI
+                            document.getElementById('statLatency').textContent = 
+                                state.latency + ' ms';
+                            document.getElementById('statUptime').textContent = 
+                                Math.round(data.uptime || 0);
+                            document.getElementById('statHeap').textContent = 
+                                data.free_heap ? Math.round(data.free_heap / 1024) + ' KB' : '-';
+                        }
+                    } catch (error) {
+                        // Silent fail for stats updates
+                    }
+                }
+            }, 5000);
+        }
+        
+        function startCameraMonitoring() {
+            // Monitor camera status periodically
+            setInterval(async () => {
+                if (state.currentCamera && state.isConnected) {
+                    try {
+                        const statusUrl = state.currentCamera + APP_CONFIG.apiEndpoints.status;
+                        const response = await fetchWithTimeout(statusUrl, { timeout: 3000 });
+                        
+                        if (!response.ok) {
+                            throw new Error('Camera not responding');
+                        }
+                    } catch (error) {
+                        console.error('Camera monitoring error:', error);
+                        updateConnectionStatus(false);
+                        stopStream();
+                        showToast('Camera connection lost', 'error');
+                    }
+                }
+            }, 10000);
+        }
+        
+        function scanNetwork() {
+            showToast('Network scanning not implemented in this version', 'warning');
+        }
+        
+        function rebootCamera() {
+            if (!state.currentCamera || !confirm('Reboot ESP32-CAM? It will take 10-15 seconds to restart.')) {
+                return;
+            }
+            
+            fetch(state.currentCamera + APP_CONFIG.apiEndpoints.reboot)
+                .then(() => {
+                    showToast('Camera rebooting... Reconnecting in 15 seconds.', 'warning');
+                    updateConnectionStatus(false);
+                    stopStream();
+                    
+                    setTimeout(() => {
+                        connectToCamera(state.currentCamera);
+                    }, 15000);
+                })
+                .catch(error => {
+                    showToast('Reboot failed: ' + error.message, 'error');
+                });
+        }
+        
+        function resetCamera() {
+            if (confirm('Reset camera to default settings?')) {
+                showToast('Reset feature not implemented', 'warning');
+            }
+        }
+        
+        function showQRCode() {
+            if (!state.currentCamera) {
+                showToast('Not connected to camera', 'warning');
+                return;
+            }
+            
+            const canvas = document.getElementById('qrCanvas');
+            const ctx = canvas.getContext('2d');
+            const url = state.currentCamera;
+            
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'black';
+            ctx.fillRect(10, 10, 180, 180);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(20, 20, 160, 160);
+            
+            ctx.fillStyle = 'black';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(url.replace('http://', ''), 100, 110);
+            
+            document.getElementById('qrModal').style.display = 'flex';
+        }
+        
+        function shareCamera() {
+            if (!state.currentCamera) {
+                showToast('Not connected to camera', 'warning');
+                return;
+            }
+            
+            const shareData = {
+                title: 'ESP32-CAM Live Stream',
+                text: 'Check out my ESP32-CAM live stream',
+                url: window.location.href
+            };
+            
+            if (navigator.share) {
+                navigator.share(shareData)
+                    .then(() => showToast('Shared successfully', 'success'))
+                    .catch(error => {
+                        if (error.name !== 'AbortError') {
+                            copyToClipboard(shareData.url);
+                        }
+                    });
+            } else {
+                copyToClipboard(shareData.url);
+            }
+        }
+        
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text)
+                .then(() => showToast('Link copied to clipboard', 'success'))
+                .catch(() => {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    showToast('Link copied to clipboard', 'success');
+                });
+        }
+        
+        function fullscreen() {
+            const videoContainer = document.getElementById('videoContainer');
+            
+            if (!document.fullscreenElement) {
+                if (videoContainer.requestFullscreen) {
+                    videoContainer.requestFullscreen();
+                } else if (videoContainer.webkitRequestFullscreen) {
+                    videoContainer.webkitRequestFullscreen();
+                } else if (videoContainer.msRequestFullscreen) {
+                    videoContainer.msRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            }
+        }
+        
+        function downloadScreenshot() {
+            const img = document.getElementById('screenshotImage');
+            const link = document.createElement('a');
+            link.href = img.src;
+            link.download = 'esp32-capture-' + new Date().toISOString().replace(/[:.]/g, '-') + '.jpg';
+            link.click();
+        }
+        
+        function closeScreenshot() {
+            document.getElementById('screenshotModal').style.display = 'none';
+        }
+        
+        function closeQRCode() {
+            document.getElementById('qrModal').style.display = 'none';
+        }
+        
+        // ================= TOAST NOTIFICATIONS =================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            let icon = 'info-circle';
+            switch(type) {
+                case 'success': icon = 'check-circle'; break;
+                case 'error': icon = 'exclamation-circle'; break;
+                case 'warning': icon = 'exclamation-triangle'; break;
+                case 'info': icon = 'info-circle'; break;
+            }
+            
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <i class="fas fa-${icon}"></i>
+                <span>${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        // ================= EXPORT FUNCTIONS =================
+        window.startStream = startStream;
+        window.stopStream = stopStream;
+        window.captureImage = captureImage;
+        window.toggleFlash = toggleFlash;
+        window.takeSnapshot = takeSnapshot;
+        window.connectCamera = connectCamera;
+        window.setConnectionMethod = setConnectionMethod;
+        window.scanNetwork = scanNetwork;
+        window.applySettings = applySettings;
+        window.updateQuality = updateQuality;
+        window.updateBrightness = updateBrightness;
+        window.updateResolution = updateResolution;
+        window.rebootCamera = rebootCamera;
+        window.resetCamera = resetCamera;
+        window.showQRCode = showQRCode;
+        window.shareCamera = shareCamera;
+        window.fullscreen = fullscreen;
+        window.downloadScreenshot = downloadScreenshot;
+        window.closeScreenshot = closeScreenshot;
+        window.closeQRCode = closeQRCode;
+        window.connectToCamera = connectToCamera;
+        window.removeCamera = removeCamera;
+        window.clearSavedCameras = clearSavedCameras;
+        
+        console.log('ESP32-CAM Viewer functions loaded successfully');
+    </script>
+</body>
+</html>
