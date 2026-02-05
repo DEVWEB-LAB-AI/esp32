@@ -691,6 +691,128 @@
             animation: spin 1s linear infinite;
             margin-right: 10px;
         }
+
+        /* Ngrok Specific Styles */
+        .ngrok-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid #7b68ee;
+        }
+
+        .ngrok-step {
+            margin-bottom: 15px;
+            padding-left: 10px;
+            border-left: 3px solid #7b68ee;
+        }
+
+        .ngrok-step-number {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: #7b68ee;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        .ngrok-code {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            margin: 8px 0;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+
+        .ngrok-tip {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .ngrok-warning {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .token-input-group {
+            position: relative;
+        }
+
+        .token-input {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1px;
+        }
+
+        .copy-token-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #7b68ee;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .ngrok-url-display {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            word-break: break-all;
+        }
+
+        .ngrok-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .ngrok-status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .ngrok-status-running {
+            background: #4caf50;
+            animation: pulse 1.5s infinite;
+        }
+
+        .ngrok-status-stopped {
+            background: #f44336;
+        }
+
+        .ngrok-test-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
@@ -710,16 +832,20 @@
                     <i class="fas fa-tv"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="camera.html" class="nav-link">
+                <a href="camera.html" class="nav-link active">
                     <i class="fas fa-camera"></i>
                     <span>Camera View</span>
+                </a>
+                <a href="javascript:void(0)" class="nav-link" onclick="showNgrokSetup()">
+                    <i class="fas fa-cloud"></i>
+                    <span>Remote Access</span>
                 </a>
             </nav>
         </div>
     </header>
     
     <!-- Main Content - Camera View -->
-    <div class="container" id="cameraContainer" style="display: none;">
+    <div class="container" id="cameraContainer">
         <!-- Video Panel -->
         <div class="video-panel">
             <div class="video-header">
@@ -823,7 +949,71 @@
                         Scan Network for Cameras
                     </button>
                     
-                    <!-- Test Public Access Button will be added here by JavaScript -->
+                    <!-- Ngrok Remote Access Section -->
+                    <div class="ngrok-section" id="ngrokSection">
+                        <h4 style="margin-bottom: 15px; color: #7b68ee;">
+                            <i class="fas fa-satellite-dish"></i> Remote Access via Ngrok
+                        </h4>
+                        
+                        <div class="ngrok-step">
+                            <span class="ngrok-step-number">1</span>
+                            <strong>Get Your Ngrok Authtoken</strong>
+                            <div class="ngrok-tip">
+                                📝 Go to <a href="https://dashboard.ngrok.com/get-started" target="_blank">dashboard.ngrok.com</a> → Copy your Authtoken
+                            </div>
+                            <div class="token-input-group">
+                                <input type="text" id="ngrokToken" class="input-field token-input" 
+                                       placeholder="Paste your ngrok authtoken here...">
+                                <button class="copy-token-btn" onclick="copyNgrokToken()">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="ngrok-step">
+                            <span class="ngrok-step-number">2</span>
+                            <strong>Setup Ngrok on Your Computer</strong>
+                            <div class="ngrok-code">
+                                # Windows/Mac/Linux Terminal<br>
+                                ngrok config add-authtoken [YOUR_TOKEN]
+                            </div>
+                            <div class="ngrok-code">
+                                # Start ngrok tunnel (Run this on your computer)<br>
+                                ngrok http 80
+                            </div>
+                        </div>
+                        
+                        <div class="ngrok-step">
+                            <span class="ngrok-step-number">3</span>
+                            <strong>Enter Ngrok URL Here</strong>
+                            <div class="input-group" style="margin-top: 10px;">
+                                <label class="input-label">Ngrok URL (e.g., abc123.ngrok.io):</label>
+                                <input type="text" id="ngrokUrl" class="input-field" 
+                                       placeholder="abc-123-456.ngrok.io">
+                            </div>
+                            <button class="btn btn-success btn-block" onclick="connectViaNgrok()" style="margin-top: 10px;">
+                                <i class="fas fa-cloud"></i> Connect via Ngrok
+                            </button>
+                        </div>
+                        
+                        <div class="ngrok-status" id="ngrokStatus">
+                            <span class="ngrok-status-indicator ngrok-status-stopped"></span>
+                            <span>Ngrok: Not connected</span>
+                        </div>
+                        
+                        <div class="ngrok-test-buttons">
+                            <button class="btn btn-outline" onclick="testNgrokConnection()">
+                                <i class="fas fa-test"></i> Test Connection
+                            </button>
+                            <button class="btn btn-info" onclick="autoDetectNgrok()">
+                                <i class="fas fa-search"></i> Auto-detect
+                            </button>
+                        </div>
+                        
+                        <div class="ngrok-tip">
+                            💡 <strong>Pro Tip:</strong> Save your ngrok URL for quick access later!
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Camera List -->
@@ -940,7 +1130,7 @@
     </div>
 
     <!-- Home Page - TRANG TRỐNG -->
-    <div class="home-container" id="homeContainer">
+    <div class="home-container" id="homeContainer" style="display: none;">
         <div class="blank-home">
             <div class="blank-home-icon">
                 <i class="fas fa-home"></i>
@@ -999,17 +1189,153 @@
             </div>
         </div>
     </div>
+
+    <!-- Ngrok Setup Modal -->
+    <div class="modal" id="ngrokSetupModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-cloud"></i> Complete Ngrok Setup Guide</h3>
+                <button onclick="closeNgrokSetup()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div style="max-height: 500px; overflow-y: auto; padding-right: 10px;">
+                    <h3 style="color: #7b68ee; margin-bottom: 20px;">📋 Step-by-Step Ngrok Setup</h3>
+                    
+                    <div class="ngrok-step">
+                        <span class="ngrok-step-number">1</span>
+                        <strong>Create Ngrok Account (FREE)</strong>
+                        <div class="ngrok-tip">
+                            Go to <a href="https://ngrok.com" target="_blank">ngrok.com</a> → Sign up for free account
+                        </div>
+                        <div class="ngrok-warning">
+                            ⚠️ Save your login credentials! You'll need them later.
+                        </div>
+                    </div>
+                    
+                    <div class="ngrok-step">
+                        <span class="ngrok-step-number">2</span>
+                        <strong>Get Your Authtoken</strong>
+                        <div class="ngrok-code">
+                            After signing up, go to:<br>
+                            https://dashboard.ngrok.com/get-started/your-authtoken
+                        </div>
+                        <div class="ngrok-tip">
+                            📋 Click "Copy" button to copy your authtoken
+                        </div>
+                        <div class="ngrok-code">
+                            Your authtoken looks like:<br>
+                            2Ab3Cd4Ef5Gh6Ij7Kl8Mn9Op0Qr1St2Uv
+                        </div>
+                    </div>
+                    
+                    <div class="ngrok-step">
+                        <span class="ngrok-step-number">3</span>
+                        <strong>Install Ngrok on Your Computer</strong>
+                        <div class="ngrok-code">
+                            # Windows:<br>
+                            Download from ngrok.com → Extract → Run ngrok.exe
+                            
+                            # Mac:<br>
+                            brew install ngrok
+                            
+                            # Linux:<br>
+                            sudo snap install ngrok
+                        </div>
+                    </div>
+                    
+                    <div class="ngrok-step">
+                        <span class="ngrok-step-number">4</span>
+                        <strong>Authenticate Ngrok</strong>
+                        <div class="ngrok-code">
+                            # Open Terminal/Command Prompt<br>
+                            ngrok config add-authtoken YOUR_TOKEN_HERE
+                        </div>
+                        <div class="ngrok-tip">
+                            ✅ You only need to do this once per computer
+                        </div>
+                    </div>
+                    
+                    <div class="ngrok-step">
+                        <span class="ngrok-step-number">5</span>
+                        <strong>Start Ngrok Tunnel</strong>
+                        <div class="ngrok-code">
+                            # Make sure ESP32-CAM is running on port 80<br>
+                            # Then run:<br>
+                            ngrok http 80
+                        </div>
+                        <div class="ngrok-tip">
+                            🔄 Keep this terminal window open while using ngrok
+                        </div>
+                    </div>
+                    
+                    <div class="ngrok-step">
+                        <span class="ngrok-step-number">6</span>
+                        <strong>Copy Ngrok URL</strong>
+                        <div class="ngrok-code">
+                            After running ngrok, you'll see:<br>
+                            Forwarding https://abc-123-456.ngrok.io -> http://localhost:80
+                        </div>
+                        <div class="ngrok-tip">
+                            📝 Copy the URL: <strong>abc-123-456.ngrok.io</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="ngrok-step">
+                        <span class="ngrok-step-number">7</span>
+                        <strong>Use in This App</strong>
+                        <div class="ngrok-code">
+                            1. Paste ngrok URL in "Camera IP Address" field<br>
+                            2. Set Connection Method to "Cloud"<br>
+                            3. Click "Connect to Camera"
+                        </div>
+                    </div>
+                    
+                    <div class="ngrok-warning">
+                        <strong>⚠️ Important Notes:</strong>
+                        <ul style="margin: 10px 0 10px 20px;">
+                            <li>Free ngrok: URL changes every time you restart</li>
+                            <li>Session expires after 2-8 hours</li>
+                            <li>For permanent URL, upgrade to paid plan</li>
+                            <li>Keep ngrok running in background</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="ngrok-tip">
+                        <strong>💡 Pro Tips:</strong>
+                        <ul style="margin: 10px 0 10px 20px;">
+                            <li>Save successful ngrok URLs in "Saved Cameras"</li>
+                            <li>Use "Auto-detect" button if ngrok is running locally</li>
+                            <li>Share the ngrok URL with friends/family</li>
+                            <li>Test with "Test Connection" button first</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button class="btn btn-primary" onclick="closeNgrokSetup()">
+                            <i class="fas fa-check"></i> Got it!
+                        </button>
+                        <button class="btn btn-success" onclick="copyNgrokGuide()">
+                            <i class="fas fa-copy"></i> Copy Guide
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <!-- JavaScript -->
     <script>
         // ================= CONFIGURATION =================
         const APP_CONFIG = {
-            version: '3.1.0',
+            version: '4.0.0',
             localStorageKeys: {
                 cameraHistory: 'esp32cam_history',
                 settings: 'esp32cam_settings',
                 lastCamera: 'esp32cam_last_camera',
-                githubIntegration: 'esp32cam_github'
+                ngrokToken: 'esp32cam_ngrok_token',
+                ngrokUrls: 'esp32cam_ngrok_urls'
             },
             defaultSettings: {
                 quality: 10,
@@ -1020,7 +1346,7 @@
                 autoConnect: true,
                 showFPS: true,
                 autoDiscover: true,
-                githubSync: true
+                autoDetectNgrok: true
             },
             apiEndpoints: {
                 stream: '/stream',
@@ -1029,11 +1355,6 @@
                 control: '/control',
                 reboot: '/reboot',
                 wifiScan: '/wifi-scan'
-            },
-            github: {
-                repo: 'qmai8/esp32',
-                pagesUrl: 'https://qmai8.github.io/esp32',
-                apiUrl: 'https://api.github.com/repos/qmai8/esp32'
             }
         };
         
@@ -1047,6 +1368,8 @@
             latency: 0,
             cameraList: [],
             settings: {},
+            ngrokToken: '',
+            ngrokUrls: [],
             streamInterval: null,
             fpsInterval: null,
             statsInterval: null
@@ -1093,7 +1416,7 @@
         
         // ================= INITIALIZATION =================
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('ESP32-CAM Viewer v' + APP_CONFIG.version + ' initialized');
+            console.log('ESP32-CAM Viewer v' + APP_CONFIG.version + ' with Ngrok support initialized');
             handlePageRouting();
             
             document.querySelectorAll('.nav-link').forEach(link => {
@@ -1120,12 +1443,10 @@
             loadSettings();
             loadCameraHistory();
             loadLastCamera();
+            loadNgrokSettings();
             initEventListeners();
             startStatsUpdate();
             loadCameraFromURL();
-            addCloudFeatures();
-            addRemoteAccessMethods();
-            addTestPublicButton();
             
             if (state.settings.autoConnect && state.currentCamera) {
                 setTimeout(() => {
@@ -1135,6 +1456,244 @@
                 setTimeout(() => {
                     discoverLocalCameras();
                 }, 2000);
+            }
+            
+            if (state.settings.autoDetectNgrok) {
+                setTimeout(() => {
+                    autoDetectNgrok();
+                }, 3000);
+            }
+        }
+        
+        // ================= NGROK FUNCTIONS =================
+        function showNgrokSetup() {
+            document.getElementById('ngrokSetupModal').style.display = 'flex';
+        }
+        
+        function closeNgrokSetup() {
+            document.getElementById('ngrokSetupModal').style.display = 'none';
+        }
+        
+        function copyNgrokGuide() {
+            const guide = `📋 Complete Ngrok Setup Guide for ESP32-CAM
+
+1️⃣ SIGN UP: Go to ngrok.com → Create free account
+2️⃣ GET TOKEN: Dashboard → Your Authtoken → Copy token
+3️⃣ INSTALL: Download ngrok for your OS (Windows/Mac/Linux)
+4️⃣ AUTHENTICATE: Run: ngrok config add-authtoken YOUR_TOKEN
+5️⃣ START: Run: ngrok http 80 (when ESP32 is running)
+6️⃣ COPY URL: Copy the ngrok.io URL shown
+7️⃣ CONNECT: Paste URL in this app → Set method to "Cloud" → Connect
+
+💡 Tips:
+• Save successful URLs in "Saved Cameras"
+• Use "Auto-detect" if ngrok is running locally
+• Free plan: URL changes each restart
+• Keep ngrok terminal window open
+
+Need help? Visit: https://dashboard.ngrok.com`;
+            
+            navigator.clipboard.writeText(guide)
+                .then(() => showToast('Ngrok guide copied to clipboard!', 'success'))
+                .catch(() => showToast('Failed to copy guide', 'error'));
+        }
+        
+        function loadNgrokSettings() {
+            try {
+                const token = localStorage.getItem(APP_CONFIG.localStorageKeys.ngrokToken);
+                const urls = localStorage.getItem(APP_CONFIG.localStorageKeys.ngrokUrls);
+                
+                if (token) {
+                    state.ngrokToken = token;
+                    document.getElementById('ngrokToken').value = token;
+                }
+                
+                if (urls) {
+                    state.ngrokUrls = JSON.parse(urls);
+                }
+            } catch (error) {
+                console.error('Error loading ngrok settings:', error);
+            }
+        }
+        
+        function saveNgrokToken() {
+            const tokenInput = document.getElementById('ngrokToken');
+            if (tokenInput) {
+                state.ngrokToken = tokenInput.value.trim();
+                localStorage.setItem(APP_CONFIG.localStorageKeys.ngrokToken, state.ngrokToken);
+                showToast('Ngrok token saved!', 'success');
+            }
+        }
+        
+        function copyNgrokToken() {
+            const tokenInput = document.getElementById('ngrokToken');
+            if (tokenInput && tokenInput.value) {
+                navigator.clipboard.writeText(tokenInput.value)
+                    .then(() => showToast('Token copied to clipboard!', 'success'))
+                    .catch(() => showToast('Failed to copy token', 'error'));
+            } else {
+                showToast('No token to copy', 'warning');
+            }
+        }
+        
+        async function connectViaNgrok() {
+            const ngrokUrlInput = document.getElementById('ngrokUrl');
+            if (!ngrokUrlInput || !ngrokUrlInput.value.trim()) {
+                showToast('Please enter ngrok URL', 'warning');
+                return;
+            }
+            
+            let ngrokUrl = ngrokUrlInput.value.trim();
+            
+            // Ensure it starts with http:// or https://
+            if (!ngrokUrl.startsWith('http://') && !ngrokUrl.startsWith('https://')) {
+                ngrokUrl = 'https://' + ngrokUrl;
+            }
+            
+            // Remove trailing slash if present
+            ngrokUrl = ngrokUrl.replace(/\/$/, '');
+            
+            // Update UI
+            document.getElementById('cameraIp').value = ngrokUrl.replace(/^https?:\/\//, '');
+            document.getElementById('cameraPort').value = '80';
+            setConnectionMethod('cloud');
+            
+            // Save to ngrok URLs history
+            if (!state.ngrokUrls.includes(ngrokUrl)) {
+                state.ngrokUrls.unshift(ngrokUrl);
+                if (state.ngrokUrls.length > 5) {
+                    state.ngrokUrls = state.ngrokUrls.slice(0, 5);
+                }
+                localStorage.setItem(APP_CONFIG.localStorageKeys.ngrokUrls, JSON.stringify(state.ngrokUrls));
+            }
+            
+            // Connect
+            connectToCamera(ngrokUrl);
+            
+            // Update ngrok status
+            updateNgrokStatus(true);
+        }
+        
+        async function autoDetectNgrok() {
+            showToast('Detecting local ngrok tunnel...', 'info');
+            updateNgrokStatus(false, 'detecting');
+            
+            try {
+                // Try to connect to local ngrok API
+                const response = await fetch('http://localhost:4040/api/tunnels', {
+                    mode: 'no-cors',
+                    cache: 'no-cache'
+                }).catch(() => null);
+                
+                if (response) {
+                    const data = await response.json();
+                    const publicUrl = data.tunnels[0]?.public_url;
+                    
+                    if (publicUrl) {
+                        document.getElementById('ngrokUrl').value = publicUrl.replace(/^https?:\/\//, '');
+                        showToast('Ngrok tunnel detected!', 'success');
+                        updateNgrokStatus(true, 'detected');
+                        
+                        // Auto-connect if user wants
+                        if (confirm('Ngrok tunnel detected! Connect automatically?')) {
+                            connectViaNgrok();
+                        }
+                    } else {
+                        showToast('No active ngrok tunnel found', 'warning');
+                        updateNgrokStatus(false, 'not_found');
+                    }
+                } else {
+                    // Alternative detection method
+                    const testUrls = [
+                        'http://localhost:4040',
+                        'http://127.0.0.1:4040'
+                    ];
+                    
+                    for (const url of testUrls) {
+                        try {
+                            const test = await fetch(url);
+                            if (test.ok) {
+                                showToast('Ngrok is running but API not accessible', 'info');
+                                updateNgrokStatus(true, 'running');
+                                return;
+                            }
+                        } catch (e) {
+                            continue;
+                        }
+                    }
+                    
+                    showToast('Ngrok is not running locally', 'warning');
+                    updateNgrokStatus(false, 'not_running');
+                }
+            } catch (error) {
+                console.error('Ngrok detection error:', error);
+                showToast('Failed to detect ngrok', 'error');
+                updateNgrokStatus(false, 'error');
+            }
+        }
+        
+        async function testNgrokConnection() {
+            const ngrokUrlInput = document.getElementById('ngrokUrl');
+            if (!ngrokUrlInput || !ngrokUrlInput.value.trim()) {
+                showToast('Please enter ngrok URL first', 'warning');
+                return;
+            }
+            
+            let testUrl = ngrokUrlInput.value.trim();
+            if (!testUrl.startsWith('http://') && !testUrl.startsWith('https://')) {
+                testUrl = 'https://' + testUrl;
+            }
+            
+            showToast('Testing ngrok connection...', 'info');
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(testUrl + '/status', {
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const latency = Date.now() - startTime;
+                
+                if (response.ok) {
+                    showToast(`✅ Ngrok connection successful! Latency: ${latency}ms`, 'success');
+                    updateNgrokStatus(true, `connected (${latency}ms)`);
+                } else {
+                    showToast(`⚠️ Ngrok responded with status: ${response.status}`, 'warning');
+                    updateNgrokStatus(false, `http_${response.status}`);
+                }
+            } catch (error) {
+                showToast(`❌ Ngrok connection failed: ${error.message}`, 'error');
+                updateNgrokStatus(false, 'failed');
+            }
+        }
+        
+        function updateNgrokStatus(connected, message = '') {
+            const statusElement = document.getElementById('ngrokStatus');
+            if (!statusElement) return;
+            
+            const indicator = statusElement.querySelector('.ngrok-status-indicator');
+            const text = statusElement.querySelector('span:last-child');
+            
+            if (connected) {
+                indicator.className = 'ngrok-status-indicator ngrok-status-running';
+                text.textContent = `Ngrok: Connected ${message ? '(' + message + ')' : ''}`;
+            } else {
+                indicator.className = 'ngrok-status-indicator ngrok-status-stopped';
+                text.textContent = `Ngrok: ${message || 'Not connected'}`;
+            }
+        }
+        
+        function saveNgrokUrl(url) {
+            if (!state.ngrokUrls.includes(url)) {
+                state.ngrokUrls.unshift(url);
+                if (state.ngrokUrls.length > 5) {
+                    state.ngrokUrls = state.ngrokUrls.slice(0, 5);
+                }
+                localStorage.setItem(APP_CONFIG.localStorageKeys.ngrokUrls, JSON.stringify(state.ngrokUrls));
             }
         }
         
@@ -1146,6 +1705,10 @@
                     const value = e.target.value.trim();
                     if (value.includes('.local')) {
                         setConnectionMethod('mdns');
+                    } else if (value.includes('ngrok.io')) {
+                        setConnectionMethod('cloud');
+                        // Auto-fill ngrok URL field
+                        document.getElementById('ngrokUrl').value = value;
                     } else if (value.includes('.') && !value.startsWith('192.168.')) {
                         setConnectionMethod('cloud');
                     }
@@ -1154,6 +1717,20 @@
                 cameraIpInput.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') {
                         connectCamera();
+                    }
+                });
+            }
+            
+            const ngrokTokenInput = document.getElementById('ngrokToken');
+            if (ngrokTokenInput) {
+                ngrokTokenInput.addEventListener('blur', saveNgrokToken);
+            }
+            
+            const ngrokUrlInput = document.getElementById('ngrokUrl');
+            if (ngrokUrlInput) {
+                ngrokUrlInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        connectViaNgrok();
                     }
                 });
             }
@@ -1209,7 +1786,7 @@
                         ipInput.placeholder = 'esp32-cam.local';
                         break;
                     case 'cloud':
-                        ipInput.placeholder = 'your-domain.com or public-ip';
+                        ipInput.placeholder = 'abc-123-456.ngrok.io';
                         break;
                 }
             }
@@ -1296,6 +1873,11 @@
                 
                 showToast(`Connected to ${data.camera_name || 'ESP32-CAM'}`, 'success');
                 
+                // Update ngrok status if using ngrok
+                if (cameraUrl.includes('ngrok.io')) {
+                    updateNgrokStatus(true, 'connected');
+                }
+                
             } catch (error) {
                 console.error('Connection failed:', error);
                 
@@ -1320,233 +1902,6 @@
                     updateConnectionStatus(false);
                 }
             }
-        }
-        
-        // ================= PUBLIC ACCESS TESTING =================
-        async function testPublicAccess() {
-            const ipInput = document.getElementById('cameraIp');
-            const portInput = document.getElementById('cameraPort');
-            
-            if (!ipInput) {
-                showToast('Please enter camera IP first', 'warning');
-                return;
-            }
-            
-            const ip = ipInput.value.trim();
-            const port = portInput ? portInput.value.trim() || '80' : '80';
-            
-            if (!ip) {
-                showToast('Please enter camera IP first', 'warning');
-                return;
-            }
-            
-            showToast('Testing public access...', 'info');
-            
-            try {
-                // Test if it's a public IP or domain
-                const isPublicIP = !ip.startsWith('192.168.') && !ip.startsWith('10.') && 
-                                 !ip.startsWith('172.') && !ip.includes('.local');
-                const testUrl = `http://${ip}:${port}/status`;
-                
-                // Use CORS mode and timeout
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000);
-                
-                try {
-                    const response = await fetch(testUrl, {
-                        mode: 'cors',
-                        signal: controller.signal,
-                        headers: {
-                            'Accept': 'application/json',
-                            'Cache-Control': 'no-cache'
-                        }
-                    }).finally(() => clearTimeout(timeoutId));
-                    
-                    if (response && response.ok) {
-                        showToast('✅ Public access is working!', 'success');
-                    } else if (isPublicIP) {
-                        showToast('⚠️ Public IP detected but connection failed. Check port forwarding.', 'warning');
-                        showPortForwardingGuide();
-                    } else {
-                        showToast('ℹ️ Local IP detected. Use port forwarding for remote access.', 'info');
-                        showPortForwardingGuide();
-                    }
-                } catch (fetchError) {
-                    if (isPublicIP) {
-                        showToast('⚠️ Public IP detected but connection failed. Check port forwarding.', 'warning');
-                        showPortForwardingGuide();
-                    } else {
-                        showToast('ℹ️ Local IP detected. Use port forwarding for remote access.', 'info');
-                        showPortForwardingGuide();
-                    }
-                }
-                
-            } catch (error) {
-                showToast('Test failed: ' + error.message, 'error');
-            }
-        }
-        
-        // ================= UI ENHANCEMENTS =================
-        function addTestPublicButton() {
-            const connectButton = document.querySelector('button[onclick="connectCamera()"]');
-            if (connectButton && connectButton.parentNode) {
-                // Check if button already exists
-                if (!document.querySelector('.test-public-btn')) {
-                    const testButton = document.createElement('button');
-                    testButton.className = 'btn btn-warning btn-block test-public-btn';
-                    testButton.style.marginTop = '10px';
-                    testButton.innerHTML = '<i class="fas fa-satellite-dish"></i> Test Public Access';
-                    testButton.onclick = testPublicAccess;
-                    
-                    connectButton.parentNode.insertBefore(testButton, connectButton.nextSibling);
-                }
-            }
-        }
-        
-        function addRemoteAccessMethods() {
-            const connectionSection = document.querySelector('.connection-section');
-            
-            if (connectionSection) {
-                // Check if already added
-                if (!document.querySelector('.remote-access-methods')) {
-                    const remoteAccessHTML = `
-                        <div class="input-group remote-access-methods" style="margin-top: 15px;">
-                            <label class="input-label">Remote Access Methods:</label>
-                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px;">
-                                <button class="btn btn-outline" onclick="showPortForwardingGuide()" style="padding: 8px; font-size: 12px;">
-                                    <i class="fas fa-globe"></i> Port Forward
-                                </button>
-                                <button class="btn btn-outline" onclick="showNgrokGuide()" style="padding: 8px; font-size: 12px;">
-                                    <i class="fas fa-cloud"></i> Ngrok
-                                </button>
-                                <button class="btn btn-outline" onclick="showDynDNSSetup()" style="padding: 8px; font-size: 12px;">
-                                    <i class="fas fa-link"></i> Dynamic DNS
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    
-                    const scanButton = connectionSection.querySelector('button[onclick="scanNetwork()"]');
-                    if (scanButton) {
-                        scanButton.insertAdjacentHTML('afterend', remoteAccessHTML);
-                    }
-                }
-            }
-        }
-        
-        // ================= REMOTE ACCESS GUIDES =================
-        function showPortForwardingGuide() {
-            const localIP = getCurrentLocalIP();
-            const guide = `📡 PORT FORWARDING SETUP
-
-1️⃣ Find your router IP (usually 192.168.1.1 or 192.168.0.1)
-2️⃣ Login with admin credentials
-3️⃣ Find "Port Forwarding" or "Virtual Server"
-4️⃣ Add new rule:
-   - Service Name: ESP32-CAM
-   - External Port: 8080 (or any port you like)
-   - Internal IP: ${localIP}
-   - Internal Port: 80
-   - Protocol: TCP
-
-5️⃣ Save and restart router if needed
-6️⃣ Your public URL: http://[YOUR-PUBLIC-IP]:8080
-
-⚠️ Note: Some ISPs block port 80`;
-            
-            showCustomModal('Port Forwarding Guide', guide);
-        }
-        
-        function showNgrokGuide() {
-            const guide = `🌐 NGROK SETUP (Easiest Method)
-
-1️⃣ Install ngrok from ngrok.com
-2️⃣ Create free account and get auth token
-3️⃣ Run on your computer:
-   ngrok authtoken YOUR_TOKEN
-   ngrok http 80
-
-4️⃣ You'll get a URL like:
-   https://abc123.ngrok.io
-
-5️⃣ Use in this app:
-   Camera IP: abc123.ngrok.io
-   Port: 443 (for HTTPS) or 80
-
-6️⃣ Share with others:
-   ${window.location.origin}?camera=abc123.ngrok.io&port=443
-
-✅ Advantages:
-   • No router configuration needed
-   • HTTPS support
-   • Works behind any firewall`;
-            
-            showCustomModal('Ngrok Setup Guide', guide);
-        }
-        
-        function showDynDNSSetup() {
-            const guide = `🔗 DYNAMIC DNS SETUP
-
-FREE SERVICES:
-• DuckDNS.org (Recommended)
-• No-IP.com
-• FreeDNS.afraid.org
-
-SETUP STEPS:
-1️⃣ Create account on DuckDNS.org
-2️⃣ Add a subdomain: yourname.duckdns.org
-3️⃣ Install DuckDNS updater on ESP32:
-   (Requires modifying ESP32 code)
-
-4️⃣ Your camera will always be at:
-   http://yourname.duckdns.org
-
-5️⃣ Setup port forwarding in router:
-   Port 80 → ESP32 local IP
-
-⚠️ Note: Most ISPs provide dynamic IP
-   that changes every few days`;
-            
-            showCustomModal('Dynamic DNS Guide', guide);
-        }
-        
-        // ================= HELPER FUNCTIONS =================
-        function showCustomModal(title, content) {
-            // Close existing modal if any
-            const existingModal = document.querySelector('.custom-guide-modal');
-            if (existingModal) {
-                existingModal.remove();
-            }
-            
-            const modal = document.createElement('div');
-            modal.className = 'modal custom-guide-modal';
-            modal.style.display = 'flex';
-            modal.innerHTML = `
-                <div class="modal-content" style="max-width: 700px;">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-info-circle"></i> ${title}</h3>
-                        <button onclick="this.parentElement.parentElement.parentElement.remove()" 
-                                style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <pre style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.5;">${content}</pre>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-primary" onclick="this.parentElement.parentElement.parentElement.remove()">Close</button>
-                        <button class="btn btn-success" onclick="copyToClipboard('${content.replace(/'/g, "\\'")}')">
-                            <i class="fas fa-copy"></i> Copy Guide
-                        </button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-        
-        function getCurrentLocalIP() {
-            const ipInput = document.getElementById('cameraIp');
-            return ipInput ? ipInput.value || '192.168.1.28' : '192.168.1.28';
         }
         
         // ================= STREAM MANAGEMENT =================
@@ -1770,7 +2125,8 @@ SETUP STEPS:
                 url: url,
                 name: name,
                 timestamp: Date.now(),
-                lastConnected: Date.now()
+                lastConnected: Date.now(),
+                type: url.includes('ngrok.io') ? 'ngrok' : 'local'
             };
             
             state.cameraList = state.cameraList.filter(cam => cam.url !== url);
@@ -1833,8 +2189,8 @@ SETUP STEPS:
             container.innerHTML = state.cameraList.map((camera, index) => `
                 <div class="camera-item">
                     <div class="camera-info">
-                        <h4>${camera.name}</h4>
-                        <p>${camera.url.replace('http://', '')}</p>
+                        <h4>${camera.name} ${camera.type === 'ngrok' ? '🌐' : '🏠'}</h4>
+                        <p>${camera.url.replace('http://', '').replace('https://', '')}</p>
                     </div>
                     <div class="camera-actions">
                         <button onclick="connectToCamera('${camera.url}')" 
@@ -2033,9 +2389,6 @@ SETUP STEPS:
             }
         }
         
-        // ================= EXISTING FUNCTIONS (truncated for brevity) =================
-        // Note: These functions are already included in your code
-        
         // ================= TOAST NOTIFICATIONS =================
         function showToast(message, type = 'info') {
             const container = document.getElementById('toastContainer');
@@ -2095,19 +2448,17 @@ SETUP STEPS:
         window.removeCamera = removeCamera;
         window.clearSavedCameras = clearSavedCameras;
         window.discoverLocalCameras = discoverLocalCameras;
-        window.generateShareableLink = generateShareableLink;
-        window.showRemoteAccessGuide = showRemoteAccessGuide;
-        window.setupCloudRelay = setupCloudRelay;
-        window.loadCameraFromURL = loadCameraFromURL;
-        window.addCloudFeatures = addCloudFeatures;
-        window.showPortForwardingGuide = showPortForwardingGuide;
-        window.showNgrokGuide = showNgrokGuide;
-        window.showDynDNSSetup = showDynDNSSetup;
-        window.testPublicAccess = testPublicAccess;
-        window.addRemoteAccessMethods = addRemoteAccessMethods;
-        window.addTestPublicButton = addTestPublicButton;
         
-        console.log('✅ ESP32-CAM Viewer v' + APP_CONFIG.version + ' with complete remote access features loaded');
+        // Ngrok functions
+        window.showNgrokSetup = showNgrokSetup;
+        window.closeNgrokSetup = closeNgrokSetup;
+        window.copyNgrokGuide = copyNgrokGuide;
+        window.copyNgrokToken = copyNgrokToken;
+        window.connectViaNgrok = connectViaNgrok;
+        window.autoDetectNgrok = autoDetectNgrok;
+        window.testNgrokConnection = testNgrokConnection;
+        
+        console.log('✅ ESP32-CAM Viewer v' + APP_CONFIG.version + ' with complete Ngrok integration loaded');
     </script>
 </body>
 </html>
