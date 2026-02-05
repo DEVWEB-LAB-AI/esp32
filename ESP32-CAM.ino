@@ -1,3 +1,24 @@
+/*
+ * ======================================================
+ * ESP32-CAM REMOTE ACCESS SERVER v3.0
+ * Tối ưu cho ESP32-CAM Viewer & Ngrok
+ * Author: ESP32-CAM Remote
+ * Date: 2024
+ * ======================================================
+ * 
+ * ĐẶC ĐIỂM:
+ * 1. Hỗ trợ CORS đầy đủ cho ESP32-CAM Viewer
+ * 2. Stream ổn định với FPS có thể điều chỉnh
+ * 3. Tự động lấy Public IP
+ * 4. Giao diện web responsive
+ * 5. Hỗ trợ ngrok hoàn hảo
+ * 
+ * KẾT NỐI CHÂN ESP32-CAM AI-Thinker:
+ * FLASH LED: GPIO 4
+ * PSRAM: KẾT NỐI ĐỂ HOẠT ĐỘNG TỐT
+ * ======================================================
+ */
+
 #include <WiFi.h>
 #include <WiFiClient.h>
 #include <WebServer.h>
@@ -10,15 +31,16 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
-// ================= CONFIGURATION =================
-// WiFi Credentials - BẠN CẦN SỬA PHẦN NÀY
-const char* ssid = "Tang 3";      // WiFi của bạn
-const char* password = "01111957v";  // Password WiFi
+// ================= CẤU HÌNH WIFI =================
+// ⚠️ BẠN PHẢI SỬA 2 DÒNG NÀY ⚠️
+const char* ssid = "Tang 3";           // Tên WiFi của bạn
+const char* password = "01111957v";    // Mật khẩu WiFi
 
-// Camera Model
+// ================= CẤU HÌNH CAMERA =================
 #define CAMERA_MODEL_AI_THINKER
 
 #if defined(CAMERA_MODEL_AI_THINKER)
+// Định nghĩa chân camera AI-Thinker
 #define PWDN_GPIO_NUM     32
 #define RESET_GPIO_NUM    -1
 #define XCLK_GPIO_NUM      0
@@ -37,25 +59,41 @@ const char* password = "01111957v";  // Password WiFi
 #define PCLK_GPIO_NUM     22
 #endif
 
-// Server Port
-WebServer server(80);
+// ================= BIẾN TOÀN CỤC =================
+WebServer server(80);  // Server trên cổng 80
 
-// Camera Settings
-int framesize = 10;    // SVGA (800x600)
-int quality = 12;      // Lower quality for faster streaming
-int brightness = 0;
-int contrast = 0;
-int saturation = 0;
-bool flashState = false;
+// Cài đặt camera mặc định
+int framesize = 9;     // VGA (640x480) - TỐI ƯU CHO REMOTE
+int quality = 12;      // Chất lượng (1-63, càng nhỏ càng tốt)
+int brightness = 0;    // Độ sáng (-2 đến 2)
+int contrast = 0;      // Độ tương phản (-2 đến 2)
+int saturation = 0;    // Độ bão hòa (-2 đến 2)
+bool flashState = false;  // Trạng thái đèn flash
 
-// System Variables
+// Biến hệ thống
 unsigned long startTime = 0;
 unsigned long frameCount = 0;
 unsigned long lastFrameTime = 0;
 float fps = 0;
-String publicIP = "";
+String publicIP = "Đang lấy...";
+String ngrokURL = "";
 
-// ================= CAMERA INITIALIZATION =================
+// ================= KHAI BÁO HÀM =================
+void setupCamera();
+String getPublicIP();
+void handleRoot();
+void handleStream();
+void handleCapture();
+void handleStatus();
+void handleControl();
+void handleReboot();
+void handleWifiScan();
+void handleInfo();
+void handleOptions();
+void sendCORSHeaders();
+void printSystemInfo();
+
+// ================= THIẾT LẬP CAMERA =================
 void setupCamera() {
     camera_config_t config;
     config.ledc_channel = LEDC_CHANNEL_0;
@@ -79,155 +117,193 @@ void setupCamera() {
     config.xclk_freq_hz = 20000000;
     config.pixel_format = PIXFORMAT_JPEG;
     
-    // Lower resolution for better remote streaming
-    config.frame_size = FRAMESIZE_SVGA;  // 800x600
-    config.jpeg_quality = quality;
-    config.fb_count = 1;  // Reduce to save memory
+    // CẤU HÌNH TỐI ƯU CHO REMOTE STREAMING
+    config.frame_size = FRAMESIZE_VGA;    // 640x480 - TỐI ƯU BĂNG THÔNG
+    config.jpeg_quality = quality;        // Chất lượng ảnh
+    config.fb_count = 2;                  // 2 frame buffer để ổn định
     
     esp_err_t err = esp_camera_init(&config);
     if (err != ESP_OK) {
-        Serial.printf("Camera init failed with error 0x%x", err);
-        return;
+        Serial.printf("❌ Lỗi khởi tạo camera: 0x%x\n", err);
+        delay(1000);
+        ESP.restart();
     }
     
+    // Cài đặt thông số camera
     sensor_t *s = esp_camera_sensor_get();
     s->set_brightness(s, brightness);
     s->set_contrast(s, contrast);
     s->set_saturation(s, saturation);
     
-    Serial.println("✓ Camera initialized");
+    Serial.println("✅ Camera đã khởi tạo (640x480)");
 }
 
-// ================= GET PUBLIC IP =================
+// ================= LẤY PUBLIC IP =================
 String getPublicIP() {
+    if (WiFi.status() != WL_CONNECTED) {
+        return "Không kết nối WiFi";
+    }
+    
     HTTPClient http;
     String ip = "";
     
-    http.begin("http://api.ipify.org");
-    int httpCode = http.GET();
+    // Thử nhiều dịch vụ IP
+    String services[] = {
+        "http://api.ipify.org",
+        "http://icanhazip.com",
+        "http://ifconfig.me/ip"
+    };
     
-    if (httpCode == HTTP_CODE_OK) {
-        ip = http.getString();
-        Serial.println("Public IP: " + ip);
-    } else {
-        Serial.println("Failed to get public IP");
+    for (int i = 0; i < 3; i++) {
+        http.begin(services[i]);
+        http.setTimeout(3000);
+        int httpCode = http.GET();
+        
+        if (httpCode == HTTP_CODE_OK) {
+            ip = http.getString();
+            ip.trim();
+            if (ip.length() > 0) {
+                http.end();
+                return ip;
+            }
+        }
+        http.end();
+        delay(100);
     }
     
-    http.end();
-    return ip;
+    return "Không lấy được IP";
 }
 
-// ================= STREAM HANDLER =================
+// ================= GỬI CORS HEADERS =================
+void sendCORSHeaders() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
+    server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    server.sendHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    server.sendHeader("Access-Control-Max-Age", "86400");
+}
+
+// ================= XỬ LÝ STREAM VIDEO =================
 void handleStream() {
+    sendCORSHeaders();
+    
     WiFiClient client = server.client();
     
+    // Gửi headers MJPEG stream
     String response = "HTTP/1.1 200 OK\r\n";
     response += "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n";
     response += "Access-Control-Allow-Origin: *\r\n";
-    response += "X-Content-Type-Options: nosniff\r\n";
     response += "Cache-Control: no-cache, no-store, must-revalidate\r\n";
     response += "Pragma: no-cache\r\n";
     response += "Expires: 0\r\n";
+    response += "Connection: close\r\n";
     response += "\r\n";
     
     client.print(response);
     
+    unsigned long lastFrame = millis();
+    unsigned long frameInterval = 100; // 10 FPS (100ms mỗi frame)
+    
     while (client.connected()) {
-        camera_fb_t *fb = esp_camera_fb_get();
-        if (!fb) {
-            Serial.println("Camera capture failed");
-            delay(100);
-            continue;
+        unsigned long now = millis();
+        if (now - lastFrame >= frameInterval) {
+            camera_fb_t *fb = esp_camera_fb_get();
+            if (!fb) {
+                Serial.println("⚠️ Không chụp được frame");
+                delay(10);
+                continue;
+            }
+            
+            // Gửi frame
+            String frameHeader = "--frame\r\n";
+            frameHeader += "Content-Type: image/jpeg\r\n";
+            frameHeader += "Content-Length: " + String(fb->len) + "\r\n";
+            frameHeader += "\r\n";
+            
+            client.print(frameHeader);
+            client.write(fb->buf, fb->len);
+            client.print("\r\n");
+            
+            // Tính FPS
+            frameCount++;
+            if (now - lastFrameTime >= 1000) {
+                fps = (frameCount * 1000.0) / (now - lastFrameTime);
+                frameCount = 0;
+                lastFrameTime = now;
+            }
+            
+            esp_camera_fb_return(fb);
+            lastFrame = now;
         }
         
-        String frame = "--frame\r\n";
-        frame += "Content-Type: image/jpeg\r\n";
-        frame += "Content-Length: " + String(fb->len) + "\r\n";
-        frame += "\r\n";
-        
-        client.print(frame);
-        client.write(fb->buf, fb->len);
-        client.print("\r\n");
-        
-        frameCount++;
-        unsigned long currentTime = millis();
-        if (currentTime - lastFrameTime >= 1000) {
-            fps = (frameCount * 1000.0) / (currentTime - lastFrameTime);
-            frameCount = 0;
-            lastFrameTime = currentTime;
-        }
-        
-        esp_camera_fb_return(fb);
-        
-        // Add delay to control frame rate (reduce bandwidth)
-        delay(50);  // ~20 FPS max
-        
-        // Check client connection
+        // Kiểm tra kết nối client
+        delay(1);
         if (!client.connected()) {
             break;
         }
     }
 }
 
-// ================= CAPTURE HANDLER ================= (ĐÃ SỬA)
+// ================= XỬ LÝ CHỤP ẢNH =================
 void handleCapture() {
     camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) {
+        sendCORSHeaders();
         server.send(500, "text/plain", "Camera capture failed");
         return;
     }
     
-    // Sử dụng WiFiClient để gửi dữ liệu nhị phân
+    // Gửi headers CORS và image
+    sendCORSHeaders();
+    server.sendHeader("Content-Type", "image/jpeg");
+    server.sendHeader("Content-Disposition", "inline; filename=capture.jpg");
+    server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    server.sendHeader("Pragma", "no-cache");
+    server.sendHeader("Expires", "0");
+    server.sendHeader("Content-Length", String(fb->len));
+    
+    // Gửi ảnh
     WiFiClient client = server.client();
-    
-    String header = "HTTP/1.1 200 OK\r\n";
-    header += "Content-Type: image/jpeg\r\n";
-    header += "Content-Disposition: inline; filename=capture.jpg\r\n";
-    header += "Access-Control-Allow-Origin: *\r\n";
-    header += "Cache-Control: no-cache, no-store, must-revalidate\r\n";
-    header += "Pragma: no-cache\r\n";
-    header += "Expires: 0\r\n";
-    header += "Content-Length: " + String(fb->len) + "\r\n";
-    header += "\r\n";
-    
-    client.print(header);
+    server.send(200, "image/jpeg", "");
     client.write(fb->buf, fb->len);
     
     esp_camera_fb_return(fb);
 }
 
-// ================= STATUS HANDLER =================
+// ================= XỬ LÝ STATUS (JSON) =================
 void handleStatus() {
-    String json = "{";
-    json += "\"free_heap\":" + String(esp_get_free_heap_size());
-    json += ",\"uptime\":" + String(millis() / 1000);
-    json += ",\"fps\":" + String(fps, 1);
-    json += ",\"framesize\":" + String(framesize);
-    json += ",\"quality\":" + String(quality);
-    json += ",\"brightness\":" + String(brightness);
-    json += ",\"camera_name\":\"ESP32-CAM-Remote\"";
-    json += ",\"flash_state\":" + String(flashState);
-    json += ",\"local_ip\":\"" + WiFi.localIP().toString() + "\"";
-    json += ",\"public_ip\":\"" + publicIP + "\"";
-    json += ",\"wifi_rssi\":" + String(WiFi.RSSI());
-    json += ",\"ssid\":\"" + String(ssid) + "\"";
-    json += ",\"version\":\"2.0-remote\"";
-    json += "}";
+    StaticJsonDocument<512> doc;
     
-    server.sendHeader("Access-Control-Allow-Origin", "*");
+    doc["free_heap"] = esp_get_free_heap_size();
+    doc["uptime"] = millis() / 1000;
+    doc["fps"] = fps;
+    doc["framesize"] = framesize;
+    doc["quality"] = quality;
+    doc["brightness"] = brightness;
+    doc["camera_name"] = "ESP32-CAM-Remote";
+    doc["flash_state"] = flashState;
+    doc["local_ip"] = WiFi.localIP().toString();
+    doc["public_ip"] = publicIP;
+    doc["wifi_rssi"] = WiFi.RSSI();
+    doc["ssid"] = ssid;
+    doc["version"] = "3.0-ngrok-optimized";
+    
+    String json;
+    serializeJson(doc, json);
+    
+    sendCORSHeaders();
     server.send(200, "application/json", json);
 }
 
-// ================= CONTROL HANDLER =================
+// ================= XỬ LÝ ĐIỀU KHIỂN =================
 void handleControl() {
-    String message = "";
     bool settingsChanged = false;
+    String message = "";
     
     if (server.hasArg("flash")) {
         flashState = server.arg("flash").toInt();
         pinMode(4, OUTPUT);
         digitalWrite(4, flashState ? HIGH : LOW);
-        message += "Flash set to: " + String(flashState ? "ON" : "OFF");
+        message += "Flash: " + String(flashState ? "ON" : "OFF");
         settingsChanged = true;
     }
     
@@ -235,7 +311,7 @@ void handleControl() {
         quality = constrain(server.arg("quality").toInt(), 1, 63);
         sensor_t *s = esp_camera_sensor_get();
         s->set_quality(s, quality);
-        message += " Quality set to: " + String(quality);
+        message += " | Quality: " + String(quality);
         settingsChanged = true;
     }
     
@@ -243,44 +319,52 @@ void handleControl() {
         brightness = constrain(server.arg("brightness").toInt(), -2, 2);
         sensor_t *s = esp_camera_sensor_get();
         s->set_brightness(s, brightness);
-        message += " Brightness set to: " + String(brightness);
+        message += " | Brightness: " + String(brightness);
         settingsChanged = true;
     }
     
     if (server.hasArg("framesize")) {
-        framesize = constrain(server.arg("framesize").toInt(), 7, 12);
+        framesize = constrain(server.arg("framesize").toInt(), 0, 13);
         sensor_t *s = esp_camera_sensor_get();
         s->set_framesize(s, (framesize_t)framesize);
-        message += " Resolution set to: " + String(framesize);
+        message += " | Resolution: " + String(framesize);
         settingsChanged = true;
     }
     
-    String json = "{";
-    json += "\"success\":" + String(settingsChanged ? "true" : "false") + ",";
-    json += "\"message\":\"" + message + "\",";
-    json += "\"settings\":{";
-    json += "\"quality\":" + String(quality) + ",";
-    json += "\"brightness\":" + String(brightness) + ",";
-    json += "\"framesize\":" + String(framesize) + ",";
-    json += "\"flash\":" + String(flashState);
-    json += "}}";
+    StaticJsonDocument<256> doc;
+    doc["success"] = settingsChanged;
+    doc["message"] = message;
     
-    server.sendHeader("Access-Control-Allow-Origin", "*");
+    JsonObject settings = doc.createNestedObject("settings");
+    settings["quality"] = quality;
+    settings["brightness"] = brightness;
+    settings["framesize"] = framesize;
+    settings["flash"] = flashState;
+    
+    String json;
+    serializeJson(doc, json);
+    
+    sendCORSHeaders();
     server.send(200, "application/json", json);
 }
 
-// ================= REBOOT HANDLER =================
+// ================= XỬ LÝ REBOOT =================
 void handleReboot() {
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "application/json", "{\"message\":\"Rebooting...\"}");
-    delay(100);
+    sendCORSHeaders();
+    server.send(200, "application/json", "{\"message\":\"ESP32-CAM sẽ reboot sau 1 giây...\"}");
+    delay(1000);
     ESP.restart();
 }
 
-// ================= WIFI SCAN HANDLER =================
+// ================= SCAN WIFI =================
 void handleWifiScan() {
+    sendCORSHeaders();
+    
+    WiFi.scanNetworks(true); // Bắt đầu scan async
+    delay(1000);
+    
+    int n = WiFi.scanComplete();
     String json = "[";
-    int n = WiFi.scanNetworks();
     
     for (int i = 0; i < n; i++) {
         if (i) json += ",";
@@ -293,198 +377,483 @@ void handleWifiScan() {
     }
     json += "]";
     
-    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "application/json", json);
 }
 
-// ================= INFO HANDLER =================
-void handleInfo() {
-    String info = "ESP32-CAM Remote Access Server\n";
-    info += "=============================\n";
-    info += "Local IP: " + WiFi.localIP().toString() + "\n";
-    info += "Public IP: " + publicIP + "\n";
-    info += "mDNS: esp32-cam.local\n";
-    info += "SSID: " + String(ssid) + "\n";
-    info += "RSSI: " + String(WiFi.RSSI()) + " dBm\n";
-    info += "Uptime: " + String(millis() / 1000) + "s\n";
-    info += "Free Heap: " + String(esp_get_free_heap_size()) + " bytes\n";
-    info += "FPS: " + String(fps, 1) + "\n";
-    info += "\nAvailable Endpoints:\n";
-    info += "  /stream    - Live video stream\n";
-    info += "  /capture   - Single image capture\n";
-    info += "  /status    - JSON status\n";
-    info += "  /control   - Control camera\n";
-    info += "  /wifi-scan - Scan WiFi networks\n";
-    info += "  /reboot    - Reboot camera\n";
-    
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "text/plain", info);
+// ================= XỬ LÝ OPTIONS (CORS PREFLIGHT) =================
+void handleOptions() {
+    sendCORSHeaders();
+    server.send(200);
 }
 
-// ================= SIMPLE HTML PAGE =================
+// ================= TRANG CHỦ HTML =================
 void handleRoot() {
-    String html = "<!DOCTYPE html><html><head>";
-    html += "<meta charset='UTF-8'>";
-    html += "<meta name='viewport' content='width=device-width, initial-scale=1.0'>";
-    html += "<title>ESP32-CAM Remote</title>";
-    html += "<style>";
-    html += "body{font-family:Arial,sans-serif;margin:20px;background:#f5f5f5;}";
-    html += ".container{max-width:1000px;margin:auto;background:white;padding:20px;border-radius:15px;box-shadow:0 5px 20px rgba(0,0,0,0.1);}";
-    html += ".header{background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:20px;border-radius:10px 10px 0 0;}";
-    html += ".video-container{background:#000;padding:5px;margin:20px 0;text-align:center;border-radius:10px;}";
-    html += "img{max-width:100%;height:auto;border-radius:8px;}";
-    html += ".btn{padding:12px 20px;margin:8px;border:none;border-radius:8px;cursor:pointer;font-weight:bold;transition:0.3s;}";
-    html += ".btn-primary{background:#4a6fa5;color:white;}";
-    html += ".btn-primary:hover{background:#166088;transform:translateY(-2px);}";
-    html += ".btn-danger{background:#dc3545;color:white;}";
-    html += ".btn-success{background:#28a745;color:white;}";
-    html += ".btn-warning{background:#ffc107;color:#333;}";
-    html += ".stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;}";
-    html += ".stat-card{background:#f8f9fa;padding:15px;border-radius:10px;border-left:4px solid #4a6fa5;}";
-    html += ".remote-access{background:#e3f2fd;padding:20px;border-radius:10px;margin:20px 0;}";
-    html += ".api-list{background:#f8f9fa;padding:15px;border-radius:10px;}";
-    html += "code{background:#eee;padding:2px 5px;border-radius:3px;font-family:monospace;}";
-    html += "</style>";
-    html += "<script>";
-    html += "function updateStats(){";
-    html += "fetch('/status').then(r=>r.json()).then(data=>{";
-    html += "document.getElementById('fps').innerHTML=data.fps.toFixed(1);";
-    html += "document.getElementById('uptime').innerHTML=data.uptime;";
-    html += "document.getElementById('heap').innerHTML=Math.round(data.free_heap/1024)+' KB';";
-    html += "document.getElementById('rssi').innerHTML=data.wifi_rssi+' dBm';";
-    html += "document.getElementById('public-ip').innerHTML=data.public_ip||'Not available';";
-    html += "});}";
-    html += "setInterval(updateStats,5000);";
-    html += "</script>";
-    html += "</head><body>";
-    
-    html += "<div class='container'>";
-    html += "<div class='header'>";
-    html += "<h1>📡 ESP32-CAM Remote Access</h1>";
-    html += "<p>Access your camera from anywhere</p>";
-    html += "</div>";
-    
-    html += "<div class='stats'>";
-    html += "<div class='stat-card'><strong>📶 WiFi RSSI</strong><br><span id='rssi'>" + String(WiFi.RSSI()) + " dBm</span></div>";
-    html += "<div class='stat-card'><strong>⏱️ Uptime</strong><br><span id='uptime'>" + String(millis()/1000) + "s</span></div>";
-    html += "<div class='stat-card'><strong>📊 FPS</strong><br><span id='fps'>0.0</span></div>";
-    html += "<div class='stat-card'><strong>💾 Free Heap</strong><br><span id='heap'>" + String(esp_get_free_heap_size()/1024) + " KB</span></div>";
-    html += "</div>";
-    
-    html += "<div class='video-container'>";
-    html += "<img src='/stream' alt='Live Stream' onerror=\"this.style.display='none';document.getElementById('stream-error').style.display='block'\">";
-    html += "<div id='stream-error' style='display:none;color:white;padding:50px;'>Stream not available. Try /capture</div>";
-    html += "</div>";
-    
-    html += "<div style='text-align:center;margin:20px 0;'>";
-    html += "<button class='btn btn-primary' onclick=\"window.open('/capture?t='+Date.now(), '_blank')\">📸 Capture Image</button>";
-    html += "<button class='btn btn-warning' onclick=\"if(confirm('Reboot camera?')){fetch('/reboot');alert('Camera will reboot...');}\">🔄 Reboot</button>";
-    html += "<button class='btn btn-success' onclick=\"fetch('/capture?t='+Date.now()).then(r=>r.blob()).then(b=>{let a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='esp32-capture-'+new Date().toISOString()+'.jpg';a.click();})\">💾 Download</button>";
-    html += "<button class='btn btn-danger' onclick=\"flashToggle=!flashToggle;fetch('/control?flash='+(flashToggle?1:0))\">💡 Toggle Flash</button>";
-    html += "</div>";
-    
-    html += "<div class='remote-access'>";
-    html += "<h3>🌐 Remote Access Methods:</h3>";
-    html += "<p><strong>Local Access:</strong> <code>" + WiFi.localIP().toString() + "</code> or <code>esp32-cam.local</code></p>";
-    html += "<p><strong>Public IP:</strong> <span id='public-ip'>" + publicIP + "</span></p>";
-    html += "<p><strong>For GitHub Pages:</strong> Use your public IP with port forwarding or cloud relay</p>";
-    html += "</div>";
-    
-    html += "<div class='api-list'>";
-    html += "<h3>🔧 API Endpoints:</h3>";
-    html += "<ul>";
-    html += "<li><a href='/stream' target='_blank'><code>/stream</code></a> - Live video stream (MJPEG)</li>";
-    html += "<li><a href='/capture' target='_blank'><code>/capture</code></a> - Single JPEG image</li>";
-    html += "<li><a href='/status' target='_blank'><code>/status</code></a> - Camera status (JSON)</li>";
-    html += "<li><code>/control?quality=10&brightness=0&flash=1</code> - Control settings</li>";
-    html += "<li><a href='/wifi-scan' target='_blank'><code>/wifi-scan</code></a> - Scan WiFi networks</li>";
-    html += "<li><a href='/reboot' target='_blank'><code>/reboot</code></a> - Reboot camera</li>";
-    html += "</ul>";
-    
-    html += "<h3>⚡ Quick Commands:</h3>";
-    html += "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px;'>";
-    html += "<button class='btn btn-primary' onclick=\"fetch('/control?quality=5')\">🎯 High Quality (5)</button>";
-    html += "<button class='btn btn-primary' onclick=\"fetch('/control?quality=20')\">🚀 Fast Stream (20)</button>";
-    html += "<button class='btn btn-primary' onclick=\"fetch('/control?brightness=2')\">🔆 Max Brightness</button>";
-    html += "<button class='btn btn-primary' onclick=\"fetch('/control?brightness=-2')\">🌙 Min Brightness</button>";
-    html += "<button class='btn btn-primary' onclick=\"fetch('/control?framesize=7')\">📱 Low Res (320x240)</button>";
-    html += "<button class='btn btn-primary' onclick=\"fetch('/control?framesize=10')\">🖥️ Medium Res (800x600)</button>";
-    html += "</div>";
-    html += "</div>";
-    
-    html += "<div style='margin-top:30px;padding-top:20px;border-top:1px solid #ddd;color:#666;text-align:center;'>";
-    html += "<p>ESP32-CAM Remote Access v2.0 | Public IP: " + publicIP + "</p>";
-    html += "<p>Use with GitHub Pages: <a href='https://qmai8.github.io/esp32' target='_blank'>qmai8.github.io/esp32</a></p>";
-    html += "</div>";
-    
-    html += "</div>"; // container
-    html += "<script>updateStats();</script>";
-    html += "</body></html>";
+    String html = R"=====(
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📷 ESP32-CAM Remote v3.0</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+        .header {
+            background: linear-gradient(135deg, #4a6fa5 0%, #166088 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        .video-container {
+            background: #000;
+            margin: 20px;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            min-height: 480px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #live-stream {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            padding: 20px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 5px solid #4a6fa5;
+            transition: transform 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .stat-card h3 {
+            color: #4a6fa5;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #333;
+        }
+        .control-panel {
+            background: #e3f2fd;
+            padding: 25px;
+            margin: 20px;
+            border-radius: 15px;
+        }
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            font-size: 0.95rem;
+        }
+        .btn-primary {
+            background: #4a6fa5;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #166088;
+            transform: scale(1.05);
+        }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+        .remote-access-info {
+            background: #fff3cd;
+            border: 2px dashed #ffc107;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 15px;
+        }
+        .api-list {
+            background: #f8f9fa;
+            padding: 25px;
+            margin: 20px;
+            border-radius: 15px;
+        }
+        code {
+            background: #eee;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            margin-top: 20px;
+        }
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.8rem; }
+            .video-container { margin: 10px; }
+            .btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📷 ESP32-CAM Remote v3.0</h1>
+            <p>Camera streaming với hỗ trợ ESP32-CAM Viewer & Ngrok</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>📶 WiFi Strength</h3>
+                <div class="stat-value" id="rssi">-- dBm</div>
+            </div>
+            <div class="stat-card">
+                <h3>⚡ FPS</h3>
+                <div class="stat-value" id="fps">0.0</div>
+            </div>
+            <div class="stat-card">
+                <h3>⏱️ Uptime</h3>
+                <div class="stat-value" id="uptime">0s</div>
+            </div>
+            <div class="stat-card">
+                <h3>💾 Memory</h3>
+                <div class="stat-value" id="heap">-- KB</div>
+            </div>
+        </div>
+
+        <div class="video-container">
+            <img id="live-stream" src="/stream" alt="Live Stream" 
+                 onerror="this.style.display='none'; document.getElementById('stream-error').style.display='block';">
+            <div id="stream-error" style="display:none; color:white; padding:50px; text-align:center;">
+                <h3>⚠️ Stream không khả dụng</h3>
+                <p>Thử truy cập <a href="/capture" style="color:#4a6fa5;">/capture</a> để kiểm tra camera</p>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <h2>🎮 Điều khiển nhanh</h2>
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="captureImage()">📸 Chụp ảnh</button>
+                <button class="btn btn-warning" onclick="toggleFlash()">💡 Bật/Tắt Flash</button>
+                <button class="btn btn-success" onclick="downloadImage()">💾 Tải ảnh</button>
+                <button class="btn btn-danger" onclick="rebootCamera()">🔄 Reboot</button>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="setQuality(5)">🎯 Chất lượng cao (5)</button>
+                <button class="btn btn-primary" onclick="setQuality(20)">🚀 Stream nhanh (20)</button>
+                <button class="btn btn-primary" onclick="setBrightness(2)">🔆 Sáng tối đa</button>
+                <button class="btn btn-primary" onclick="setBrightness(-2)">🌙 Tối tối đa</button>
+            </div>
+        </div>
+
+        <div class="remote-access-info">
+            <h2>🌐 Kết nối Remote với ESP32-CAM Viewer</h2>
+            <p><strong>📍 Địa chỉ Local:</strong> <code id="local-ip">Đang tải...</code></p>
+            <p><strong>🌍 Public IP:</strong> <code id="public-ip">Đang tải...</code></p>
+            <p><strong>🔗 mDNS:</strong> <code>esp32-cam.local</code></p>
+            
+            <h3 style="margin-top:15px;">📡 Hướng dẫn dùng với Ngrok:</h3>
+            <ol style="margin-left:20px; margin-top:10px;">
+                <li>Chạy ESP32-CAM (code này) kết nối WiFi</li>
+                <li>Trên máy tính, chạy: <code>ngrok http [IP-ESP32]:80</code></li>
+                <li>Sao chép URL ngrok (vd: <code>xxxx.ngrok-free.app</code>)</li>
+                <li>Mở ESP32-CAM Viewer → Cloud → nhập URL ngrok</li>
+            </ol>
+        </div>
+
+        <div class="api-list">
+            <h2>🔧 API Endpoints (cho ESP32-CAM Viewer)</h2>
+            <ul style="margin-left:20px; margin-top:10px;">
+                <li><code>GET /stream</code> - Video stream MJPEG</li>
+                <li><code>GET /capture</code> - Ảnh JPEG (cho viewer)</li>
+                <li><code>GET /status</code> - Trạng thái JSON</li>
+                <li><code>GET /control?flash=1&quality=10</code> - Điều khiển</li>
+                <li><code>OPTIONS /*</code> - CORS preflight (tự động)</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>ESP32-CAM Remote Access v3.0 | Tối ưu cho ESP32-CAM Viewer & Ngrok</p>
+            <p>Địa chỉ hiện tại: <span id="current-ip">Đang tải...</span></p>
+            <p><a href="/info" style="color:#4a6fa5;">ℹ️ Thông tin hệ thống</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Cập nhật thông số hệ thống
+        function updateStats() {
+            fetch('/status')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('rssi').textContent = data.wifi_rssi + ' dBm';
+                    document.getElementById('fps').textContent = data.fps.toFixed(1);
+                    document.getElementById('uptime').textContent = data.uptime + 's';
+                    document.getElementById('heap').textContent = Math.round(data.free_heap/1024) + ' KB';
+                    document.getElementById('local-ip').textContent = data.local_ip;
+                    document.getElementById('public-ip').textContent = data.public_ip;
+                    document.getElementById('current-ip').textContent = window.location.host;
+                })
+                .catch(e => console.log('Lỗi cập nhật:', e));
+        }
+
+        // Chụp ảnh
+        function captureImage() {
+            window.open('/capture?t=' + Date.now(), '_blank');
+        }
+
+        // Tải ảnh
+        function downloadImage() {
+            fetch('/capture?t=' + Date.now())
+                .then(r => r.blob())
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'esp32-capture-' + new Date().toISOString() + '.jpg';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                });
+        }
+
+        // Bật/tắt flash
+        let flashOn = false;
+        function toggleFlash() {
+            flashOn = !flashOn;
+            fetch('/control?flash=' + (flashOn ? 1 : 0))
+                .then(() => alert('Flash: ' + (flashOn ? 'BẬT' : 'TẮT')));
+        }
+
+        // Đặt chất lượng
+        function setQuality(q) {
+            fetch('/control?quality=' + q)
+                .then(() => alert('Chất lượng đặt: ' + q));
+        }
+
+        // Đặt độ sáng
+        function setBrightness(b) {
+            fetch('/control?brightness=' + b)
+                .then(() => alert('Độ sáng đặt: ' + b));
+        }
+
+        // Reboot
+        function rebootCamera() {
+            if (confirm('Reboot ESP32-CAM?')) {
+                fetch('/reboot')
+                    .then(() => alert('Camera sẽ reboot...'));
+            }
+        }
+
+        // Tự động cập nhật mỗi 3 giây
+        setInterval(updateStats, 3000);
+        updateStats();
+        
+        // Tự động reload stream nếu mất kết nối
+        setInterval(() => {
+            const img = document.getElementById('live-stream');
+            if (img.style.display !== 'none') {
+                img.src = '/stream?t=' + Date.now();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
+)=====";
     
     server.send(200, "text/html", html);
 }
 
+// ================= THÔNG TIN HỆ THỐNG =================
+void handleInfo() {
+    String info = "════════════════════════════════════════\n";
+    info += "       ESP32-CAM REMOTE ACCESS v3.0\n";
+    info += "════════════════════════════════════════\n\n";
+    
+    info += "📡 KẾT NỐI MẠNG:\n";
+    info += "  SSID:        " + String(ssid) + "\n";
+    info += "  Local IP:    " + WiFi.localIP().toString() + "\n";
+    info += "  Public IP:   " + publicIP + "\n";
+    info += "  MAC Address: " + WiFi.macAddress() + "\n";
+    info += "  RSSI:        " + String(WiFi.RSSI()) + " dBm\n\n";
+    
+    info += "📊 HỆ THỐNG:\n";
+    info += "  Uptime:      " + String(millis() / 1000) + " giây\n";
+    info += "  Free Heap:   " + String(esp_get_free_heap_size()) + " bytes\n";
+    info += "  FPS:         " + String(fps, 1) + "\n";
+    info += "  Flash Size:  " + String(ESP.getFlashChipSize() / 1024 / 1024) + " MB\n\n";
+    
+    info += "🎥 CAMERA:\n";
+    info += "  Resolution:  640x480 (VGA)\n";
+    info += "  Quality:     " + String(quality) + "\n";
+    info += "  Brightness:  " + String(brightness) + "\n";
+    info += "  Flash:       " + String(flashState ? "ON" : "OFF") + "\n\n";
+    
+    info += "🔗 ENDPOINTS:\n";
+    info += "  /            - Trang chủ\n";
+    info += "  /stream      - Live stream\n";
+    info += "  /capture     - Chụp ảnh\n";
+    info += "  /status      - JSON status\n";
+    info += "  /control     - Điều khiển\n";
+    info += "  /wifi-scan   - Scan WiFi\n";
+    info += "  /reboot      - Reboot\n";
+    info += "  /info        - Thông tin này\n\n";
+    
+    info += "📱 CHO ESP32-CAM VIEWER:\n";
+    info += "  Host: " + WiFi.localIP().toString() + "\n";
+    info += "  Port: 80\n";
+    info += "  URL:  http://" + WiFi.localIP().toString() + "/capture\n";
+    info += "════════════════════════════════════════\n";
+    
+    sendCORSHeaders();
+    server.send(200, "text/plain", info);
+}
+
+// ================= IN THÔNG TIN HỆ THỐNG =================
+void printSystemInfo() {
+    Serial.println("\n════════════════════════════════════════");
+    Serial.println("   ESP32-CAM REMOTE ACCESS v3.0");
+    Serial.println("════════════════════════════════════════");
+    Serial.println("📡 WiFi: " + String(ssid));
+    Serial.println("📍 Local IP:  " + WiFi.localIP().toString());
+    Serial.println("🌍 Public IP: " + publicIP);
+    Serial.println("📶 RSSI: " + String(WiFi.RSSI()) + " dBm");
+    Serial.println("🎥 Camera: 640x480 @ FPS: " + String(fps, 1));
+    Serial.println("💾 Free Heap: " + String(esp_get_free_heap_size() / 1024) + " KB");
+    Serial.println("\n🔗 CHO ESP32-CAM VIEWER:");
+    Serial.println("  Direct IP: " + WiFi.localIP().toString() + ":80");
+    Serial.println("  Capture URL: http://" + WiFi.localIP().toString() + "/capture");
+    Serial.println("\n📡 CHO NGROK:");
+    Serial.println("  Command: ngrok http " + WiFi.localIP().toString() + ":80");
+    Serial.println("════════════════════════════════════════\n");
+}
+
 // ================= SETUP =================
 void setup() {
+    // Tắt brownout detector để ổn định
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
     
     Serial.begin(115200);
+    Serial.setDebugOutput(true);
     delay(1000);
     
-    Serial.println("\n\n========================================");
-    Serial.println("   ESP32-CAM REMOTE ACCESS SERVER");
-    Serial.println("========================================");
+    Serial.println("\n\n");
+    Serial.println("███████╗███████╗██████╗ ██╗██████╗ ");
+    Serial.println("██╔════╝██╔════╝██╔══██╗╚═╝╚════██╗");
+    Serial.println("███████╗███████╗██████╔╝██║ █████╔╝");
+    Serial.println("╚════██║╚════██║██╔═══╝ ██║██╔═══╝ ");
+    Serial.println("███████║███████║██║     ██║███████╗");
+    Serial.println("╚══════╝╚══════╝╚═╝     ╚═╝╚══════╝");
+    Serial.println("     CAM REMOTE v3.0 - NGROK READY");
+    Serial.println("\n");
     
-    // Setup LED flash pin
+    // Cấu hình đèn flash
     pinMode(4, OUTPUT);
     digitalWrite(4, LOW);
     
-    // Initialize camera
-    Serial.println("Initializing camera...");
+    // Khởi tạo camera
+    Serial.println("[1/4] 🎥 Khởi tạo camera...");
     setupCamera();
     
-    // Connect to WiFi
-    Serial.print("Connecting to WiFi: ");
-    Serial.println(ssid);
-    
+    // Kết nối WiFi
+    Serial.println("[2/4] 📡 Kết nối WiFi: " + String(ssid));
     WiFi.begin(ssid, password);
-    WiFi.setSleep(false);
+    WiFi.setSleep(WIFI_PS_NONE); // Tắt sleep để ổn định
     
     int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+    while (WiFi.status() != WL_CONNECTED && attempts < 40) {
         delay(500);
         Serial.print(".");
+        digitalWrite(4, !digitalRead(4)); // Nhấp nháy đèn khi kết nối
         attempts++;
     }
-    Serial.println();
     
     if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("✓ WiFi connected!");
-        Serial.print("  Local IP: ");
-        Serial.println(WiFi.localIP());
-        Serial.print("  RSSI: ");
-        Serial.print(WiFi.RSSI());
-        Serial.println(" dBm");
+        digitalWrite(4, LOW);
+        Serial.println("\n✅ WiFi connected!");
+        Serial.println("   IP: " + WiFi.localIP().toString());
+        Serial.println("   RSSI: " + String(WiFi.RSSI()) + " dBm");
         
-        // Get public IP
-        Serial.println("Getting public IP...");
+        // Lấy public IP
+        Serial.println("[3/4] 🌍 Lấy public IP...");
         publicIP = getPublicIP();
         
-        // Setup mDNS
+        // Khởi tạo mDNS
         if (MDNS.begin("esp32-cam")) {
-            Serial.println("✓ mDNS: esp32-cam.local");
-        } else {
-            Serial.println("✗ mDNS failed!");
+            Serial.println("✅ mDNS: esp32-cam.local");
         }
     } else {
-        Serial.println("✗ WiFi failed! Starting AP mode...");
+        Serial.println("\n❌ WiFi failed! Starting AP mode...");
         WiFi.softAP("ESP32-CAM-REMOTE", "12345678");
-        Serial.print("  AP IP: ");
-        Serial.println(WiFi.softAPIP());
-        publicIP = "AP Mode Only";
+        Serial.println("   AP IP: " + WiFi.softAPIP().toString());
+        publicIP = "AP Mode";
     }
     
-    // Setup server routes
+    // ================= CẤU HÌNH SERVER =================
+    Serial.println("[4/4] 🚀 Cấu hình server...");
+    
+    // Đăng ký OPTIONS handler cho CORS
+    server.on("/", HTTP_OPTIONS, handleOptions);
+    server.on("/stream", HTTP_OPTIONS, handleOptions);
+    server.on("/capture", HTTP_OPTIONS, handleOptions);
+    server.on("/status", HTTP_OPTIONS, handleOptions);
+    server.on("/control", HTTP_OPTIONS, handleOptions);
+    server.on("/wifi-scan", HTTP_OPTIONS, handleOptions);
+    server.on("/reboot", HTTP_OPTIONS, handleOptions);
+    server.on("/info", HTTP_OPTIONS, handleOptions);
+    
+    // Đăng ký các route chính
     server.on("/", HTTP_GET, handleRoot);
     server.on("/stream", HTTP_GET, handleStream);
     server.on("/capture", HTTP_GET, handleCapture);
@@ -494,57 +863,51 @@ void setup() {
     server.on("/wifi-scan", HTTP_GET, handleWifiScan);
     server.on("/info", HTTP_GET, handleInfo);
     
-    // Enable CORS for all routes
+    // Xử lý 404 với CORS
     server.onNotFound([]() {
-        server.sendHeader("Access-Control-Allow-Origin", "*");
-        server.send(404, "text/plain", "Not Found");
+        sendCORSHeaders();
+        server.send(404, "text/plain", "404: Not Found");
     });
     
-    // Start server
+    // Khởi động server
     server.begin();
-    Serial.println("✓ HTTP server started on port 80");
+    Serial.println("✅ HTTP server started on port 80");
     
     startTime = millis();
     lastFrameTime = millis();
     
-    Serial.println("\n📡 AVAILABLE ENDPOINTS:");
-    Serial.println("  Local:  http://" + WiFi.localIP().toString());
-    Serial.println("  mDNS:   http://esp32-cam.local");
-    Serial.println("  Public: http://" + publicIP + " (if port forwarded)");
-    Serial.println("\n🔗 For GitHub Pages:");
-    Serial.println("  Use URL: http://" + publicIP + ":80");
-    Serial.println("  Share: https://qmai8.github.io/esp32?camera=" + publicIP + "&port=80");
-    Serial.println("========================================\n");
+    // In thông tin hệ thống
+    printSystemInfo();
+    
+    // Nhấp nháy đèn 3 lần để báo hiệu hoàn tất
+    for (int i = 0; i < 3; i++) {
+        digitalWrite(4, HIGH);
+        delay(100);
+        digitalWrite(4, LOW);
+        delay(100);
+    }
 }
 
-// ================= MAIN LOOP =================
+// ================= LOOP CHÍNH =================
 void loop() {
     server.handleClient();
     
-    // Periodic tasks
-    static unsigned long lastUpdateTime = 0;
-    static unsigned long lastStatsTime = 0;
-    unsigned long currentTime = millis();
-    
-    // Update public IP every 5 minutes
-    if (currentTime - lastUpdateTime > 300000 && WiFi.status() == WL_CONNECTED) {
+    // Cập nhật public IP mỗi 5 phút
+    static unsigned long lastIPUpdate = 0;
+    if (millis() - lastIPUpdate > 300000 && WiFi.status() == WL_CONNECTED) {
         publicIP = getPublicIP();
-        lastUpdateTime = currentTime;
+        lastIPUpdate = millis();
     }
     
-    // Print stats every 60 seconds
-    if (currentTime - lastStatsTime > 60000) {
-        Serial.printf("[STATS] Heap: %dKB | FPS: %.1f | Uptime: %dmin | RSSI: %ddBm\n",
+    // In thông tin hệ thống mỗi 30 giây
+    static unsigned long lastStatsPrint = 0;
+    if (millis() - lastStatsPrint > 30000) {
+        Serial.printf("[STATS] Uptime: %dmin | Heap: %dKB | FPS: %.1f | RSSI: %ddBm\n",
+                     millis() / 60000,
                      esp_get_free_heap_size() / 1024,
                      fps,
-                     millis() / 60000,
                      WiFi.RSSI());
-        
-        Serial.printf("[IP] Local: %s | Public: %s\n", 
-                     WiFi.localIP().toString().c_str(),
-                     publicIP.c_str());
-        
-        lastStatsTime = currentTime;
+        lastStatsPrint = millis();
     }
     
     delay(1);
