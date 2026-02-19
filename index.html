@@ -1,54 +1,36 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32-CAM Viewer with CORS Proxy</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ESP32-CAM Viewer</title>
     
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- MQTT Library -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     
     <style>
-        :root {
-            --primary: #4a6fa5;
-            --secondary: #166088;
-            --success: #28a745;
-            --danger: #dc3545;
-            --warning: #ffc107;
-            --info: #17a2b8;
-            --light: #f8f9fa;
-            --dark: #343a40;
-            --gray: #6c757d;
-            --border: #dee2e6;
-        }
-        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
-            font-family: 'Poppins', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            color: var(--dark);
-            line-height: 1.6;
+            color: #333;
         }
-        
-        /* Header & Navigation */
+
         .header {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
             position: sticky;
             top: 0;
-            z-index: 1000;
+            z-index: 100;
         }
-        
+
         .nav-container {
             max-width: 1400px;
             margin: 0 auto;
@@ -58,243 +40,223 @@
             align-items: center;
             height: 70px;
         }
-        
+
         .logo {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: 600;
+            color: #4a6fa5;
         }
-        
-        .logo-icon {
-            color: var(--primary);
-            font-size: 28px;
-        }
-        
-        .logo-text {
-            font-size: 22px;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        
-        .nav-menu {
+
+        .nav-links {
             display: flex;
-            gap: 25px;
+            gap: 10px;
         }
-        
+
         .nav-link {
             text-decoration: none;
-            color: var(--gray);
-            font-weight: 500;
+            color: #666;
             padding: 8px 16px;
             border-radius: 8px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            transition: all 0.3s;
         }
-        
-        .nav-link:hover, .nav-link.active {
-            color: var(--primary);
-            background: rgba(74, 111, 165, 0.1);
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: #4a6fa5;
+            color: white;
         }
-        
-        /* Main Container */
+
         .container {
             max-width: 1400px;
             margin: 30px auto;
             padding: 0 20px;
+        }
+
+        .main-panel {
             display: grid;
-            grid-template-columns: 1fr 380px;
+            grid-template-columns: 1fr 350px;
             gap: 25px;
         }
-        
-        @media (max-width: 1024px) {
-            .container {
+
+        @media (max-width: 900px) {
+            .main-panel {
                 grid-template-columns: 1fr;
             }
         }
-        
-        /* Video Panel */
+
         .video-panel {
             background: white;
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
         }
-        
+
         .video-header {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: linear-gradient(135deg, #4a6fa5, #166088);
             color: white;
             padding: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        
-        .video-title {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
+
         .video-container {
-            position: relative;
             background: #000;
-            min-height: 500px;
+            min-height: 400px;
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
+            aspect-ratio: 4/3;
         }
-        
+
         #videoStream {
             width: 100%;
-            max-width: 100%;
-            height: auto;
-            display: block;
+            height: 100%;
+            object-fit: contain;
+            display: none;
         }
-        
-        .stream-placeholder {
+
+        .placeholder {
             text-align: center;
             color: #666;
             padding: 40px;
         }
-        
-        .stream-placeholder i {
+
+        .placeholder i {
             font-size: 64px;
             margin-bottom: 20px;
-            color: var(--gray);
+            color: #333;
         }
-        
+
         .video-controls {
             padding: 20px;
-            background: var(--light);
+            background: #f8f9fa;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 12px;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
         }
-        
-        /* Control Panel */
+
         .control-panel {
             background: white;
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
         }
-        
+
         .panel-header {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: linear-gradient(135deg, #4a6fa5, #166088);
             color: white;
             padding: 20px;
-            font-size: 18px;
             font-weight: 600;
         }
-        
+
         .panel-content {
-            padding: 25px;
+            padding: 20px;
         }
-        
-        /* Connection Section */
-        .connection-section {
-            margin-bottom: 30px;
+
+        .section {
+            margin-bottom: 25px;
         }
-        
+
         .section-title {
             font-size: 16px;
             font-weight: 600;
             margin-bottom: 15px;
-            color: var(--dark);
+            color: #4a6fa5;
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        
+
         .input-group {
             margin-bottom: 15px;
         }
-        
+
         .input-label {
             display: block;
-            margin-bottom: 6px;
-            font-weight: 500;
-            color: var(--gray);
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 14px;
         }
-        
+
         .input-field {
             width: 100%;
-            padding: 12px 15px;
-            border: 2px solid var(--border);
-            border-radius: 10px;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 14px;
-            font-family: 'Poppins', sans-serif;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
         }
-        
+
         .input-field:focus {
             outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
+            border-color: #4a6fa5;
         }
-        
-        /* Button Styles */
+
+        select.input-field {
+            background: white;
+        }
+
         .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            padding: 12px 24px;
+            padding: 10px 16px;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: 'Poppins', sans-serif;
-        }
-        
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: var(--secondary);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(74, 111, 165, 0.3);
-        }
-        
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-        
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-        
-        .btn-warning {
-            background: var(--warning);
-            color: var(--dark);
-        }
-        
-        .btn-outline {
-            background: transparent;
-            border: 2px solid var(--primary);
-            color: var(--primary);
-        }
-        
-        .btn-outline:hover {
-            background: var(--primary);
-            color: white;
-        }
-        
-        .btn-block {
+            transition: all 0.3s;
             width: 100%;
         }
-        
-        /* Status Indicators */
+
+        .btn-primary { background: #4a6fa5; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-warning { background: #ffc107; color: #333; }
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-mqtt { background: #3caea3; color: white; }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #4a6fa5;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+        }
+
         .status-indicator {
             display: inline-flex;
             align-items: center;
@@ -304,171 +266,93 @@
             font-size: 12px;
             font-weight: 600;
         }
-        
-        .status-connected {
-            background: rgba(40, 167, 69, 0.15);
-            color: var(--success);
+
+        .status-online {
+            background: rgba(40, 167, 69, 0.1);
+            color: #28a745;
         }
-        
-        .status-disconnected {
-            background: rgba(220, 53, 69, 0.15);
-            color: var(--danger);
+
+        .status-offline {
+            background: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
         }
-        
-        /* Camera List */
-        .camera-list {
-            max-height: 300px;
+
+        .device-list {
+            max-height: 200px;
             overflow-y: auto;
-            margin-bottom: 20px;
+            margin: 10px 0;
         }
-        
-        .camera-item {
+
+        .device-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 15px;
+            padding: 10px;
             margin-bottom: 8px;
-            background: var(--light);
-            border-radius: 10px;
-            border-left: 4px solid var(--primary);
-            transition: all 0.3s ease;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #4a6fa5;
         }
-        
-        .camera-item:hover {
-            background: #e9ecef;
-            transform: translateX(5px);
+
+        .device-item.online {
+            border-left-color: #28a745;
         }
-        
-        .camera-info h4 {
-            font-size: 14px;
-            margin-bottom: 4px;
+
+        .device-item.offline {
+            border-left-color: #dc3545;
+            opacity: 0.7;
         }
-        
-        .camera-info p {
-            font-size: 12px;
-            color: var(--gray);
-        }
-        
-        .camera-actions {
+
+        .device-info {
             display: flex;
-            gap: 5px;
+            align-items: center;
+            gap: 8px;
         }
-        
-        /* Settings */
-        .settings-section {
-            margin-bottom: 25px;
-        }
-        
-        .slider-group {
-            margin-bottom: 20px;
-        }
-        
-        .slider-label {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-        
-        .slider-value {
-            color: var(--primary);
-            font-weight: 600;
-        }
-        
-        .slider {
-            width: 100%;
+
+        .device-dot {
+            width: 8px;
             height: 8px;
-            border-radius: 4px;
-            background: var(--border);
-            outline: none;
-            -webkit-appearance: none;
-        }
-        
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 22px;
-            height: 22px;
             border-radius: 50%;
-            background: var(--primary);
-            cursor: pointer;
-            border: 3px solid white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            background: #28a745;
         }
-        
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 25px;
+
+        .device-dot.offline {
+            background: #dc3545;
         }
-        
-        .stat-card {
-            background: var(--light);
-            padding: 15px;
-            border-radius: 12px;
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--primary);
-            margin-bottom: 5px;
-        }
-        
-        .stat-label {
-            font-size: 12px;
-            color: var(--gray);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        /* Toast Notifications */
+
         .toast-container {
             position: fixed;
             bottom: 30px;
             right: 30px;
             z-index: 9999;
         }
-        
+
         .toast {
             background: white;
-            padding: 15px 20px;
-            border-radius: 10px;
+            padding: 12px 24px;
+            border-radius: 8px;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
             margin-bottom: 10px;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             transform: translateX(100%);
             opacity: 0;
             animation: slideIn 0.3s ease forwards;
         }
-        
-        .toast-success {
-            border-left: 4px solid var(--success);
-        }
-        
-        .toast-error {
-            border-left: 4px solid var(--danger);
-        }
-        
-        .toast-warning {
-            border-left: 4px solid var(--warning);
-        }
-        
-        .toast-info {
-            border-left: 4px solid var(--info);
-        }
-        
+
+        .toast-success { border-left: 4px solid #28a745; }
+        .toast-error { border-left: 4px solid #dc3545; }
+        .toast-warning { border-left: 4px solid #ffc107; }
+        .toast-info { border-left: 4px solid #17a2b8; }
+
         @keyframes slideIn {
             to {
                 transform: translateX(0);
                 opacity: 1;
             }
         }
-        
-        /* Modal */
+
         .modal {
             display: none;
             position: fixed;
@@ -481,1711 +365,1178 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .modal-content {
             background: white;
-            border-radius: 20px;
+            border-radius: 15px;
             width: 90%;
-            max-width: 500px;
+            max-width: 400px;
             overflow: hidden;
         }
-        
+
         .modal-header {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: linear-gradient(135deg, #4a6fa5, #166088);
             color: white;
-            padding: 20px;
+            padding: 15px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        
+
         .modal-body {
-            padding: 30px;
-        }
-        
-        .modal-footer {
             padding: 20px;
-            background: var(--light);
+            text-align: center;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            background: #f8f9fa;
             display: flex;
             justify-content: flex-end;
             gap: 10px;
         }
-        
-        /* Responsive */
-        @media (max-width: 768px) {
-            .nav-container {
-                flex-direction: column;
-                height: auto;
-                padding: 15px;
-            }
-            
-            .nav-menu {
-                margin-top: 15px;
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-            
-            .video-controls {
-                grid-template-columns: 1fr 1fr;
-            }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
         }
-        
-        /* Loading Spinner */
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid var(--border);
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        /* Connection Methods */
-        .connection-methods {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+
+        .tab-bar {
+            display: flex;
+            gap: 2px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            padding: 4px;
             margin-bottom: 20px;
         }
-        
-        .method-btn {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            padding: 12px;
-            border: 2px solid var(--border);
-            border-radius: 10px;
-            background: white;
+
+        .tab {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.3s;
         }
-        
-        .method-btn:hover, .method-btn.active {
-            border-color: var(--primary);
-            background: rgba(74, 111, 165, 0.05);
-        }
-        
-        .method-icon {
-            font-size: 24px;
-            color: var(--primary);
-        }
-        
-        .method-name {
-            font-size: 12px;
+
+        .tab.active {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            color: #4a6fa5;
             font-weight: 600;
         }
 
-        /* Home Page */
-        .home-container {
-            max-width: 1400px;
-            margin: 30px auto;
-            padding: 0 20px;
-            min-height: 70vh;
+        .tab-content {
+            display: none;
         }
 
-        .blank-home {
-            text-align: center;
-            padding: 100px 20px;
+        .tab-content.active {
+            display: block;
         }
 
-        .blank-home-icon {
-            font-size: 100px;
-            color: rgba(74, 111, 165, 0.1);
-            margin-bottom: 30px;
+        .slider-group {
+            margin-bottom: 20px;
         }
 
-        .blank-home-text {
-            color: rgba(108, 117, 125, 0.5);
-            font-size: 24px;
-            font-weight: 300;
-            letter-spacing: 2px;
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
         }
 
-        /* Dashboard Page */
-        .dashboard-container {
-            max-width: 1400px;
-            margin: 30px auto;
-            padding: 0 20px;
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
         }
 
-        .dashboard-content {
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-            padding: 40px;
-            min-height: 600px;
-        }
-
-        .dashboard-title {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 30px;
-            color: var(--primary);
-        }
-
-        /* Cloud Features */
-        .cloud-features {
-            margin-top: 25px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-        }
-
-        /* QR Code Improvements */
-        #qrCanvas {
-            background: white;
-            border: 2px solid var(--primary);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: transform 0.3s;
-        }
-
-        #qrCanvas:hover {
-            transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        /* Connection Status Animation */
-        .status-dot {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 0.6; }
-            50% { opacity: 1; }
-            100% { opacity: 0.6; }
-        }
-
-        .status-connected .status-dot {
-            background: var(--success);
-            box-shadow: 0 0 10px var(--success);
-        }
-
-        .status-disconnected .status-dot {
-            background: var(--danger);
-        }
-
-        /* Loading Animation for Auto-discovery */
-        .loading-discovery {
-            display: inline-block;
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
             width: 20px;
             height: 20px;
-            border: 2px solid var(--border);
-            border-top: 2px solid var(--primary);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 10px;
-        }
-
-        /* Ngrok Specific Styles */
-        .ngrok-section {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 20px;
-            border-left: 4px solid #7b68ee;
-        }
-
-        .ngrok-step {
-            margin-bottom: 15px;
-            padding-left: 10px;
-            border-left: 3px solid #7b68ee;
-        }
-
-        .ngrok-step-number {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            background: #7b68ee;
-            color: white;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 24px;
-            margin-right: 10px;
-            font-weight: bold;
-        }
-
-        .ngrok-code {
-            background: #2d2d2d;
-            color: #f8f8f2;
-            padding: 10px;
-            border-radius: 6px;
-            font-family: 'Courier New', monospace;
-            margin: 8px 0;
-            font-size: 13px;
-            overflow-x: auto;
-        }
-
-        .ngrok-tip {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 10px 15px;
-            margin: 10px 0;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-
-        .ngrok-warning {
-            background: #ffebee;
-            border-left: 4px solid #f44336;
-            padding: 10px 15px;
-            margin: 10px 0;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-
-        .token-input-group {
-            position: relative;
-        }
-
-        .token-input {
-            font-family: 'Courier New', monospace;
-            letter-spacing: 1px;
-        }
-
-        .copy-token-btn {
-            position: absolute;
-            right: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #7b68ee;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
+            background: #4a6fa5;
             cursor: pointer;
-            font-size: 12px;
         }
 
-        .ngrok-url-display {
-            background: #e8f5e9;
-            border: 2px solid #4caf50;
-            border-radius: 8px;
-            padding: 12px;
-            margin: 10px 0;
-            text-align: center;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            word-break: break-all;
-        }
-
-        .ngrok-status {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 10px 0;
-        }
-
-        .ngrok-status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .ngrok-status-running {
-            background: #4caf50;
-            animation: pulse 1.5s infinite;
-        }
-
-        .ngrok-status-stopped {
-            background: #f44336;
-        }
-
-        .ngrok-test-buttons {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin: 15px 0;
-        }
-
-        /* Proxy Specific Styles */
-        .proxy-section {
-            background: #e8f4fd;
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 20px;
-            border-left: 4px solid #2196f3;
-        }
-
-        .proxy-status {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 10px 0;
-            padding: 10px;
-            background: white;
-            border-radius: 8px;
-        }
-
-        .proxy-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .proxy-online {
-            background: #4caf50;
-            animation: pulse 1.5s infinite;
-        }
-
-        .proxy-offline {
-            background: #f44336;
-        }
-
-        .proxy-checking {
-            background: #ff9800;
-            animation: pulse 1s infinite;
-        }
-
-        .proxy-controls {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .proxy-instructions {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 8px;
-            font-size: 13px;
-        }
-
-        .proxy-instructions code {
-            background: #f8f9fa;
-            padding: 2px 5px;
-            border-radius: 4px;
-            font-family: 'Courier New', monospace;
+        hr {
+            border: none;
+            border-top: 1px solid #e0e0e0;
+            margin: 20px 0;
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
     <header class="header">
         <div class="nav-container">
             <div class="logo">
-                <i class="fas fa-video logo-icon"></i>
-                <span class="logo-text">ESP32-CAM Viewer</span>
-                <span style="font-size: 12px; background: #4a6fa5; color: white; padding: 2px 8px; border-radius: 10px; margin-left: 5px;">
-                    + CORS Proxy
-                </span>
+                <span>📷 ESP32-CAM Viewer</span>
             </div>
-            <nav class="nav-menu">
-                <a href="index.html" class="nav-link active">
-                    <i class="fas fa-home"></i>
-                    <span>Home</span>
-                </a>
-                <a href="#camera" class="nav-link">
-                    <i class="fas fa-camera"></i>
-                    <span>Camera</span>
-                </a>
-                <a href="#dashboard" class="nav-link">
-                    <i class="fas fa-tv"></i>
-                    <span>Dashboard</span>
-                </a>
-                <a href="javascript:void(0)" class="nav-link" onclick="showNgrokSetup()">
-                    <i class="fas fa-cloud"></i>
-                    <span>Remote Access</span>
-                </a>
-            </nav>
+            <div class="nav-links">
+                <a href="#" class="nav-link active" onclick="showPage('home')">Home</a>
+                <a href="#" class="nav-link" onclick="showPage('stream')">Stream</a>
+                <a href="#" class="nav-link" onclick="showPage('mqtt')">MQTT</a>
+                <a href="#" class="nav-link" onclick="showPage('settings')">Settings</a>
+            </div>
         </div>
     </header>
-    
-    <!-- Home Page -->
-    <div class="home-container" id="homeContainer">
-        <div class="blank-home">
-            <div class="blank-home-icon">
-                <i class="fas fa-video"></i>
-            </div>
-            <div class="blank-home-text">
-                ESP32-CAM Viewer with CORS Proxy
-            </div>
-            <div style="margin-top: 40px; max-width: 800px; margin-left: auto; margin-right: auto;">
-                <h3 style="color: var(--primary); margin-bottom: 20px;">🚀 Cài đặt nhanh:</h3>
-                
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-                    <div style="background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-                        <h4><i class="fas fa-server" style="color: #2196f3;"></i> 1. Khởi động Proxy Server</h4>
-                        <div class="proxy-instructions">
-                            <code>npm install</code><br>
-                            <code>node server.js</code>
-                        </div>
-                        <button class="btn btn-primary" onclick="startProxyServer()" style="width: 100%; margin-top: 10px;">
-                            <i class="fas fa-play"></i> Hướng dẫn chi tiết
-                        </button>
-                    </div>
-                    
-                    <div style="background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-                        <h4><i class="fas fa-wifi" style="color: #4caf50;"></i> 2. Kết nối Camera</h4>
-                        <p style="font-size: 14px; color: #666; margin: 10px 0;">
-                            Proxy server sẽ tự động xử lý lỗi CORS
-                        </p>
-                        <button class="btn btn-success" onclick="window.location.hash = '#camera'" style="width: 100%;">
-                            <i class="fas fa-plug"></i> Đến trang Camera
-                        </button>
-                    </div>
-                    
-                    <div style="background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-                        <h4><i class="fas fa-satellite-dish" style="color: #7b68ee;"></i> 3. Remote với Ngrok</h4>
-                        <p style="font-size: 14px; color: #666; margin: 10px 0;">
-                            Xem camera từ xa qua internet
-                        </p>
-                        <button class="btn btn-warning" onclick="showNgrokSetup()" style="width: 100%;">
-                            <i class="fas fa-cloud"></i> Hướng dẫn Ngrok
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Proxy Status on Home Page -->
-                <div class="proxy-section" style="margin-top: 40px;">
-                    <h4 style="color: #2196f3; margin-bottom: 15px;">
-                        <i class="fas fa-server"></i> Trạng thái Proxy Server
-                    </h4>
-                    <div class="proxy-status">
-                        <span class="proxy-indicator proxy-checking" id="homeProxyIndicator"></span>
-                        <span id="homeProxyStatusText">Đang kiểm tra proxy server...</span>
-                    </div>
-                    <div class="proxy-controls">
-                        <button class="btn btn-outline" onclick="checkProxyStatus()">
-                            <i class="fas fa-sync"></i> Kiểm tra lại
-                        </button>
-                        <button class="btn btn-info" onclick="openProxySettings()">
-                            <i class="fas fa-cog"></i> Cài đặt Proxy
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Camera View Page -->
-    <div class="container" id="cameraContainer" style="display: none;">
-        <!-- Video Panel -->
-        <div class="video-panel">
-            <div class="video-header">
-                <div class="video-title">
-                    <i class="fas fa-video"></i>
-                    <h2>Live Camera Stream</h2>
+    <div class="container">
+        <!-- Home Page -->
+        <div id="homePage" style="display: none;">
+            <div style="background: white; border-radius: 20px; padding: 60px 20px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
+                <div style="font-size: 120px; color: rgba(74, 111, 165, 0.1); margin-bottom: 30px;">
+                    📷
                 </div>
-                <div class="status-indicator" id="connectionStatus">
-                    <span class="status-dot"></span>
-                    <span>Disconnected</span>
-                </div>
-            </div>
-            
-            <div class="video-container" id="videoContainer">
-                <img id="videoStream" alt="Live Stream" style="display: none;">
-                <div class="stream-placeholder" id="streamPlaceholder">
-                    <i class="fas fa-video-slash"></i>
-                    <h3>No Active Stream</h3>
-                    <p>Connect to an ESP32-CAM to start streaming</p>
-                </div>
-            </div>
-            
-            <div class="video-controls">
-                <button class="btn btn-primary" onclick="startStream()">
-                    <i class="fas fa-play"></i>
-                    Start Stream
-                </button>
-                <button class="btn btn-danger" onclick="stopStream()">
-                    <i class="fas fa-stop"></i>
-                    Stop Stream
-                </button>
-                <button class="btn btn-success" onclick="captureImage()">
-                    <i class="fas fa-camera"></i>
-                    Capture
-                </button>
-                <button class="btn btn-warning" onclick="toggleFlash()">
-                    <i class="fas fa-lightbulb"></i>
-                    Flash
-                </button>
-                <button class="btn btn-outline" onclick="takeSnapshot()">
-                    <i class="fas fa-download"></i>
-                    Snapshot
-                </button>
-                <button class="btn btn-outline" onclick="fullscreen()">
-                    <i class="fas fa-expand"></i>
-                    Fullscreen
+                <h2 style="color: #4a6fa5; margin-bottom: 20px;">ESP32-CAM Remote Viewer</h2>
+                <p style="color: #666; max-width: 600px; margin: 0 auto 30px;">
+                    View your ESP32-CAM stream remotely via MQTT or WebSocket. 
+                    Connect to your camera from anywhere with 4G/WiFi.
+                </p>
+                <button class="btn btn-primary" onclick="showPage('stream')" style="width: auto; padding: 12px 30px;">
+                    Get Started
                 </button>
             </div>
         </div>
-        
-        <!-- Control Panel -->
-        <div class="control-panel">
-            <div class="panel-header">
-                <i class="fas fa-sliders-h"></i>
-                Control Panel
-            </div>
-            
-            <div class="panel-content">
-                <!-- CORS Proxy Status -->
-                <div class="proxy-section">
-                    <h4 class="section-title" style="color: #2196f3;">
-                        <i class="fas fa-server"></i>
-                        CORS Proxy Server
-                    </h4>
-                    
-                    <div class="proxy-status">
-                        <span class="proxy-indicator" id="proxyIndicator"></span>
-                        <span id="proxyStatusText">Checking...</span>
+
+        <!-- Stream Page -->
+        <div id="streamPage" class="main-panel">
+            <!-- Video Panel -->
+            <div class="video-panel">
+                <div class="video-header">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span>📹 Live Stream</span>
                     </div>
-                    
-                    <div style="margin: 10px 0; font-size: 13px;">
-                        <label>
-                            <input type="checkbox" id="proxyEnabled" checked onchange="toggleProxy()">
-                            Enable CORS Proxy (Fix lỗi CORS)
-                        </label>
-                    </div>
-                    
-                    <div class="ngrok-tip" style="margin: 10px 0;">
-                        <i class="fas fa-info-circle"></i>
-                        Proxy server giải quyết lỗi CORS bằng cách định tuyến qua server local.
-                    </div>
-                    
-                    <div class="proxy-controls">
-                        <button class="btn btn-outline" onclick="startProxyServer()">
-                            <i class="fas fa-play"></i> Start Proxy
-                        </button>
-                        <button class="btn btn-info" onclick="openProxySettings()">
-                            <i class="fas fa-cog"></i> Settings
-                        </button>
-                        <button class="btn btn-success" onclick="checkProxyStatus()">
-                            <i class="fas fa-sync"></i> Refresh
-                        </button>
-                        <button class="btn btn-warning" onclick="discoverLocalCameras()">
-                            <i class="fas fa-search"></i> Auto-discover
-                        </button>
+                    <div class="status-indicator status-offline" id="streamStatus">
+                        <span>●</span>
+                        <span>Offline</span>
                     </div>
                 </div>
                 
-                <!-- Connection Section -->
-                <div class="connection-section">
-                    <h3 class="section-title">
-                        <i class="fas fa-wifi"></i>
-                        Camera Connection
-                    </h3>
-                    
-                    <div class="connection-methods">
-                        <div class="method-btn active" data-method="direct" onclick="setConnectionMethod('direct')">
-                            <i class="fas fa-ethernet method-icon"></i>
-                            <span class="method-name">Direct IP</span>
-                        </div>
-                        <div class="method-btn" data-method="mdns" onclick="setConnectionMethod('mdns')">
-                            <i class="fas fa-network-wired method-icon"></i>
-                            <span class="method-name">mDNS</span>
-                        </div>
-                        <div class="method-btn" data-method="cloud" onclick="setConnectionMethod('cloud')">
-                            <i class="fas fa-cloud method-icon"></i>
-                            <span class="method-name">Cloud</span>
-                        </div>
-                    </div>
-                    
-                    <div class="input-group">
-                        <label class="input-label">Camera IP Address:</label>
-                        <input type="text" id="cameraIp" class="input-field" 
-                               placeholder="192.168.1.28 or esp32-cam.local" 
-                               value="192.168.1.28">
-                    </div>
-                    
-                    <div class="input-group">
-                        <label class="input-label">Port (Optional):</label>
-                        <input type="text" id="cameraPort" class="input-field" 
-                               placeholder="80" value="80">
-                    </div>
-                    
-                    <button class="btn btn-primary btn-block" onclick="connectCamera()">
-                        <i class="fas fa-plug"></i>
-                        Connect to Camera
-                    </button>
-                    
-                    <button class="btn btn-outline btn-block" onclick="scanNetwork()" style="margin-top: 10px;">
-                        <i class="fas fa-search"></i>
-                        Scan Network for Cameras
-                    </button>
-                    
-                    <!-- Ngrok Remote Access Section -->
-                    <div class="ngrok-section">
-                        <h4 style="margin-bottom: 15px; color: #7b68ee;">
-                            <i class="fas fa-satellite-dish"></i> Remote Access via Ngrok
-                        </h4>
-                        
-                        <div class="ngrok-step">
-                            <span class="ngrok-step-number">1</span>
-                            <strong>Get Your Ngrok Authtoken</strong>
-                            <div class="ngrok-tip">
-                                📝 Go to <a href="https://dashboard.ngrok.com/get-started" target="_blank">dashboard.ngrok.com</a> → Copy your Authtoken
-                            </div>
-                            <div class="token-input-group">
-                                <input type="text" id="ngrokToken" class="input-field token-input" 
-                                       placeholder="Paste your ngrok authtoken here...">
-                                <button class="copy-token-btn" onclick="copyNgrokToken()">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div class="ngrok-step">
-                            <span class="ngrok-step-number">2</span>
-                            <strong>Setup Ngrok on Your Computer</strong>
-                            <div class="ngrok-code">
-                                # Windows/Mac/Linux Terminal<br>
-                                ngrok config add-authtoken [YOUR_TOKEN]
-                            </div>
-                            <div class="ngrok-code">
-                                # Start ngrok tunnel (Run this on your computer)<br>
-                                ngrok http 80
-                            </div>
-                        </div>
-                        
-                        <div class="ngrok-step">
-                            <span class="ngrok-step-number">3</span>
-                            <strong>Enter Ngrok URL Here</strong>
-                            <div class="input-group" style="margin-top: 10px;">
-                                <label class="input-label">Ngrok URL (e.g., abc123.ngrok.io):</label>
-                                <input type="text" id="ngrokUrl" class="input-field" 
-                                       placeholder="abc-123-456.ngrok.io">
-                            </div>
-                            <button class="btn btn-success btn-block" onclick="connectViaNgrok()" style="margin-top: 10px;">
-                                <i class="fas fa-cloud"></i> Connect via Ngrok
-                            </button>
-                        </div>
-                        
-                        <div class="ngrok-status" id="ngrokStatus">
-                            <span class="ngrok-status-indicator ngrok-status-stopped"></span>
-                            <span>Ngrok: Not connected</span>
-                        </div>
-                        
-                        <div class="ngrok-test-buttons">
-                            <button class="btn btn-outline" onclick="testNgrokConnection()">
-                                <i class="fas fa-test"></i> Test Connection
-                            </button>
-                            <button class="btn btn-info" onclick="autoDetectNgrok()">
-                                <i class="fas fa-search"></i> Auto-detect
-                            </button>
-                        </div>
-                        
-                        <div class="ngrok-tip">
-                            💡 <strong>Pro Tip:</strong> Save your ngrok URL for quick access later!
-                        </div>
+                <div class="video-container" id="videoContainer">
+                    <img id="videoStream" alt="Live Stream">
+                    <div class="placeholder" id="videoPlaceholder">
+                        <div>📹</div>
+                        <h3>No Stream</h3>
+                        <p>Connect to start viewing</p>
                     </div>
                 </div>
                 
-                <!-- Camera List -->
-                <div class="connection-section">
-                    <h3 class="section-title">
-                        <i class="fas fa-history"></i>
-                        Saved Cameras
-                    </h3>
-                    <div class="camera-list" id="cameraList">
-                        <!-- Dynamic content -->
-                    </div>
-                    <button class="btn btn-outline btn-block" onclick="clearSavedCameras()">
-                        <i class="fas fa-trash"></i>
-                        Clear All
+                <div class="video-controls">
+                    <button class="btn btn-primary" onclick="startMjpeg()">
+                        <span>▶</span> MJPEG
+                    </button>
+                    <button class="btn btn-success" onclick="connectWebSocket()">
+                        <span>🔌</span> WebSocket
+                    </button>
+                    <button class="btn btn-warning" onclick="toggleFlash()">
+                        <span>💡</span> Flash
+                    </button>
+                    <button class="btn btn-info" onclick="captureImage()">
+                        <span>📸</span> Capture
+                    </button>
+                    <button class="btn btn-danger" onclick="stopStream()">
+                        <span>⏹️</span> Stop
                     </button>
                 </div>
                 
-                <!-- Settings -->
-                <div class="settings-section">
-                    <h3 class="section-title">
-                        <i class="fas fa-cog"></i>
-                        Camera Settings
-                    </h3>
-                    
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span>Quality</span>
-                            <span class="slider-value" id="qualityValue">10</span>
-                        </div>
-                        <input type="range" class="slider" id="qualitySlider" 
-                               min="1" max="63" value="10" onchange="updateQuality()">
-                    </div>
-                    
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span>Brightness</span>
-                            <span class="slider-value" id="brightnessValue">0</span>
-                        </div>
-                        <input type="range" class="slider" id="brightnessSlider" 
-                               min="-2" max="2" value="0" onchange="updateBrightness()">
-                    </div>
-                    
-                    <div class="slider-group">
-                        <label class="input-label">Resolution:</label>
-                        <select id="resolutionSelect" class="input-field" onchange="updateResolution()">
-                            <option value="7">QVGA (320x240)</option>
-                            <option value="8">CIF (400x296)</option>
-                            <option value="9">VGA (640x480)</option>
-                            <option value="10" selected>SVGA (800x600)</option>
-                            <option value="11">XGA (1024x768)</option>
-                            <option value="12">SXGA (1280x1024)</option>
-                        </select>
-                    </div>
-                    
-                    <button class="btn btn-primary btn-block" onclick="applySettings()">
-                        <i class="fas fa-check"></i>
-                        Apply Settings
-                    </button>
-                </div>
-                
-                <!-- Statistics -->
-                <div class="settings-section">
-                    <h3 class="section-title">
-                        <i class="fas fa-chart-bar"></i>
-                        Statistics
-                    </h3>
+                <div style="padding: 15px; background: #f8f9fa; border-top: 1px solid #e0e0e0;">
                     <div class="stats-grid">
                         <div class="stat-card">
-                            <div class="stat-value" id="statFps">0</div>
+                            <div class="stat-value" id="fpsValue">0</div>
                             <div class="stat-label">FPS</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value" id="statLatency">-</div>
-                            <div class="stat-label">LATENCY</div>
+                            <div class="stat-value" id="frameSize">0</div>
+                            <div class="stat-label">KB</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value" id="statUptime">0</div>
-                            <div class="stat-label">UPTIME (s)</div>
+                            <div class="stat-value" id="rssiValue">-</div>
+                            <div class="stat-label">RSSI</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value" id="statHeap">-</div>
-                            <div class="stat-label">FREE HEAP</div>
+                            <div class="stat-value" id="uptimeValue">0</div>
+                            <div class="stat-label">Uptime</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <div class="panel-header">
+                    <span>⚙️ Quick Controls</span>
+                </div>
+                
+                <div class="panel-content">
+                    <div class="section">
+                        <div class="section-title">
+                            <span>🔌 Direct Connection</span>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Camera IP:</label>
+                            <input type="text" id="cameraIp" class="input-field" 
+                                   placeholder="192.168.1.x" value="192.168.4.1">
+                        </div>
+                        <button class="btn btn-primary" onclick="connectDirect()">
+                            Connect Direct
+                        </button>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-title">
+                            <span>📡 MJPEG Stream</span>
+                        </div>
+                        <button class="btn btn-success" onclick="startMjpeg()">
+                            Start MJPEG Stream
+                        </button>
+                        <p style="font-size: 12px; color: #666; margin-top: 8px;">
+                            Best for local network, works on all browsers
+                        </p>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-title">
+                            <span>🔌 WebSocket</span>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">WebSocket Port:</label>
+                            <input type="text" id="wsPort" class="input-field" value="8080">
+                        </div>
+                        <button class="btn btn-info" onclick="connectWebSocket()">
+                            Connect WebSocket
+                        </button>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-title">
+                            <span>⚡ Quick Actions</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button class="btn btn-warning" onclick="setQuality(10)">Q:10</button>
+                            <button class="btn btn-warning" onclick="setQuality(20)">Q:20</button>
+                            <button class="btn btn-info" onclick="setFPS(5)">5 FPS</button>
+                            <button class="btn btn-info" onclick="setFPS(10)">10 FPS</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MQTT Page -->
+        <div id="mqttPage" style="display: none;">
+            <div class="main-panel">
+                <div class="video-panel">
+                    <div class="video-header">
+                        <span>🌐 MQTT Remote Stream</span>
+                    </div>
+                    
+                    <div class="video-container" style="min-height: 300px;" id="mqttVideoContainer">
+                        <img id="mqttVideoStream" style="width:100%; display:none;">
+                        <div class="placeholder" id="mqttPlaceholder">
+                            <div>🌐</div>
+                            <h3>MQTT Not Connected</h3>
+                            <p>Connect to MQTT broker to view remote cameras</p>
+                        </div>
+                    </div>
+                    
+                    <div style="padding: 20px;">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-value" id="mqttFps">0</div>
+                                <div class="stat-label">FPS</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value" id="mqttFrames">0</div>
+                                <div class="stat-label">Frames</div>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Quick Actions -->
-                <div class="settings-section" id="quickActionsSection">
-                    <h3 class="section-title">
-                        <i class="fas fa-bolt"></i>
-                        Quick Actions
-                    </h3>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-                        <button class="btn btn-warning" onclick="rebootCamera()">
-                            <i class="fas fa-redo"></i>
-                            Reboot
-                        </button>
-                        <button class="btn btn-danger" onclick="resetCamera()">
-                            <i class="fas fa-undo"></i>
-                            Reset
-                        </button>
-                        <button class="btn btn-success" onclick="showQRCode()">
-                            <i class="fas fa-qrcode"></i>
-                            QR Code
-                        </button>
-                        <button class="btn btn-info" onclick="shareCamera()">
-                            <i class="fas fa-share-alt"></i>
-                            Share
-                        </button>
+                <div class="control-panel">
+                    <div class="panel-header">
+                        <span>🌐 MQTT Configuration</span>
+                    </div>
+                    
+                    <div class="panel-content">
+                        <div class="section">
+                            <div class="section-title">
+                                <span>🔌 Broker Settings</span>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">MQTT Broker:</label>
+                                <select id="mqttBroker" class="input-field" onchange="handleBrokerChange()">
+                                    <option value="broker.emqx.io:8083">broker.emqx.io (Global)</option>
+                                    <option value="test.mosquitto.org:8081">test.mosquitto.org</option>
+                                    <option value="broker.hivemq.com:8000">broker.hivemq.com</option>
+                                    <option value="custom">Custom...</option>
+                                </select>
+                            </div>
+                            
+                            <div id="customBrokerGroup" style="display: none;">
+                                <div class="input-group">
+                                    <label class="input-label">Custom Broker:</label>
+                                    <input type="text" id="customBroker" class="input-field" 
+                                           placeholder="broker.emqx.io:8083">
+                                </div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">Client ID:</label>
+                                <input type="text" id="mqttClientId" class="input-field" 
+                                       value="webclient_" + Math.random().toString(36).substring(7)">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">Username (optional):</label>
+                                <input type="text" id="mqttUsername" class="input-field">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">Password (optional):</label>
+                                <input type="password" id="mqttPassword" class="input-field">
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0;">
+                                <button class="btn btn-success" onclick="connectMQTT()">
+                                    Connect
+                                </button>
+                                <button class="btn btn-danger" onclick="disconnectMQTT()">
+                                    Disconnect
+                                </button>
+                            </div>
+                            
+                            <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin: 10px 0;" id="mqttStatus">
+                                <span class="status-dot" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #dc3545; margin-right: 8px;"></span>
+                                MQTT: Disconnected
+                            </div>
+                        </div>
+                        
+                        <div class="section">
+                            <div class="section-title">
+                                <span>📡 Topic Settings</span>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">Image Topic:</label>
+                                <input type="text" id="imageTopic" class="input-field" 
+                                       value="esp32cam/+/image">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">Control Topic:</label>
+                                <input type="text" id="controlTopic" class="input-field" 
+                                       value="esp32cam/+/control">
+                            </div>
+                            
+                            <button class="btn btn-primary" onclick="subscribeTopics()">
+                                Subscribe
+                            </button>
+                        </div>
+                        
+                        <div class="section">
+                            <div class="section-title">
+                                <span>📱 Available Devices</span>
+                            </div>
+                            
+                            <div class="device-list" id="deviceList">
+                                <p style="text-align: center; color: #666; padding: 20px;">
+                                    No devices found
+                                </p>
+                            </div>
+                            
+                            <button class="btn btn-info" onclick="scanDevices()">
+                                Scan for Devices
+                            </button>
+                        </div>
+                        
+                        <div class="section">
+                            <div class="section-title">
+                                <span>🎮 Remote Control</span>
+                            </div>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <button class="btn btn-warning" onclick="sendMqttCommand('flash_on')">
+                                    Flash ON
+                                </button>
+                                <button class="btn btn-secondary" onclick="sendMqttCommand('flash_off')">
+                                    Flash OFF
+                                </button>
+                                <button class="btn btn-info" onclick="sendMqttCommand('quality:10')">
+                                    Quality 10
+                                </button>
+                                <button class="btn btn-info" onclick="sendMqttCommand('quality:20')">
+                                    Quality 20
+                                </button>
+                                <button class="btn btn-success" onclick="sendMqttCommand('stream_start')">
+                                    Start Stream
+                                </button>
+                                <button class="btn btn-danger" onclick="sendMqttCommand('stream_stop')">
+                                    Stop Stream
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settingsPage" style="display: none;">
+            <div class="main-panel" style="grid-template-columns: 1fr;">
+                <div class="control-panel">
+                    <div class="panel-header">
+                        <span>⚙️ Camera Settings</span>
+                    </div>
+                    
+                    <div class="panel-content">
+                        <div class="section">
+                            <div class="section-title">
+                                <span>🎚️ Image Settings</span>
+                            </div>
+                            
+                            <div class="slider-group">
+                                <div class="slider-label">
+                                    <span>Quality (1-63):</span>
+                                    <span id="qualityDisplay">10</span>
+                                </div>
+                                <input type="range" class="slider" id="qualitySlider" 
+                                       min="1" max="63" value="10" 
+                                       oninput="document.getElementById('qualityDisplay').innerText=this.value">
+                            </div>
+                            
+                            <div class="slider-group">
+                                <div class="slider-label">
+                                    <span>Target FPS (1-30):</span>
+                                    <span id="fpsDisplay">10</span>
+                                </div>
+                                <input type="range" class="slider" id="fpsSlider" 
+                                       min="1" max="30" value="10"
+                                       oninput="document.getElementById('fpsDisplay').innerText=this.value">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">Resolution:</label>
+                                <select id="resolution" class="input-field">
+                                    <option value="5">96x96 (ICON)</option>
+                                    <option value="6">160x120 (QQVGA)</option>
+                                    <option value="7">320x240 (QVGA)</option>
+                                    <option value="8">400x296 (CIF)</option>
+                                    <option value="9">640x480 (VGA)</option>
+                                    <option value="10" selected>800x600 (SVGA)</option>
+                                    <option value="11">1024x768 (XGA)</option>
+                                    <option value="12">1280x1024 (SXGA)</option>
+                                    <option value="13">1600x1200 (UXGA)</option>
+                                </select>
+                            </div>
+                            
+                            <button class="btn btn-primary" onclick="applyCameraSettings()">
+                                Apply Settings
+                            </button>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="section">
+                            <div class="section-title">
+                                <span>ℹ️ Device Information</span>
+                            </div>
+                            
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                <p><strong>Device ID:</strong> <span id="infoDeviceId">-</span></p>
+                                <p><strong>IP Address:</strong> <span id="infoIp">-</span></p>
+                                <p><strong>MAC Address:</strong> <span id="infoMac">-</span></p>
+                                <p><strong>Firmware:</strong> ESP32-CAM v5.0</p>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="section">
+                            <div class="section-title">
+                                <span>⚡ Advanced</span>
+                            </div>
+                            
+                            <button class="btn btn-danger" onclick="rebootCamera()" style="margin-bottom: 10px;">
+                                Reboot Camera
+                            </button>
+                            
+                            <button class="btn btn-warning" onclick="window.location.href='/config'">
+                                WiFi Configuration
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Dashboard Page -->
-    <div class="dashboard-container" id="dashboardContainer" style="display: none;">
-        <div class="dashboard-content">
-            <h2 class="dashboard-title">
-                <i class="fas fa-tv"></i>
-                Dashboard
-            </h2>
-            <p>Dashboard page content will be here.</p>
-        </div>
-    </div>
-    
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
-    
+
     <!-- Screenshot Modal -->
     <div class="modal" id="screenshotModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-camera"></i> Captured Image</h3>
-                <button onclick="closeScreenshot()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">
-                    <i class="fas fa-times"></i>
-                </button>
+                <h3>Captured Image</h3>
+                <button class="close-btn" onclick="closeModal('screenshotModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <img id="screenshotImage" style="width:100%;border-radius:10px;">
+                <img id="screenshotImage" style="width: 100%; border-radius: 8px;">
             </div>
             <div class="modal-footer">
-                <button class="btn btn-outline" onclick="closeScreenshot()">Close</button>
+                <button class="btn btn-secondary" onclick="closeModal('screenshotModal')">Close</button>
                 <button class="btn btn-primary" onclick="downloadScreenshot()">Download</button>
             </div>
         </div>
     </div>
-    
-    <!-- QR Code Modal -->
-    <div class="modal" id="qrModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3><i class="fas fa-qrcode"></i> Camera QR Code</h3>
-                <button onclick="closeQRCode()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body" style="text-align:center;">
-                <canvas id="qrCanvas" width="200" height="200" style="margin:0 auto 20px;display:block;"></canvas>
-                <p>Scan this QR code to connect to the camera</p>
-            </div>
-        </div>
-    </div>
 
-    <!-- Ngrok Setup Modal -->
-    <div class="modal" id="ngrokSetupModal">
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header">
-                <h3><i class="fas fa-cloud"></i> Complete Ngrok Setup Guide</h3>
-                <button onclick="closeNgrokSetup()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div style="max-height: 500px; overflow-y: auto; padding-right: 10px;">
-                    <h3 style="color: #7b68ee; margin-bottom: 20px;">📋 Step-by-Step Ngrok Setup</h3>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">1</span>
-                        <strong>Create Ngrok Account (FREE)</strong>
-                        <div class="ngrok-tip">
-                            Go to <a href="https://ngrok.com" target="_blank">ngrok.com</a> → Sign up for free account
-                        </div>
-                        <div class="ngrok-warning">
-                            ⚠️ Save your login credentials! You'll need them later.
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">2</span>
-                        <strong>Get Your Authtoken</strong>
-                        <div class="ngrok-code">
-                            After signing up, go to:<br>
-                            https://dashboard.ngrok.com/get-started/your-authtoken
-                        </div>
-                        <div class="ngrok-tip">
-                            📋 Click "Copy" button to copy your authtoken
-                        </div>
-                        <div class="ngrok-code">
-                            Your authtoken looks like:<br>
-                            2Ab3Cd4Ef5Gh6Ij7Kl8Mn9Op0Qr1St2Uv
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">3</span>
-                        <strong>Install Ngrok on Your Computer</strong>
-                        <div class="ngrok-code">
-                            # Windows:<br>
-                            Download from ngrok.com → Extract → Run ngrok.exe
-                            
-                            # Mac:<br>
-                            brew install ngrok
-                            
-                            # Linux:<br>
-                            sudo snap install ngrok
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">4</span>
-                        <strong>Authenticate Ngrok</strong>
-                        <div class="ngrok-code">
-                            # Open Terminal/Command Prompt<br>
-                            ngrok config add-authtoken YOUR_TOKEN_HERE
-                        </div>
-                        <div class="ngrok-tip">
-                            ✅ You only need to do this once per computer
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">5</span>
-                        <strong>Start Ngrok Tunnel</strong>
-                        <div class="ngrok-code">
-                            # Make sure ESP32-CAM is running on port 80<br>
-                            # Then run:<br>
-                            ngrok http 80
-                        </div>
-                        <div class="ngrok-tip">
-                            🔄 Keep this terminal window open while using ngrok
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">6</span>
-                        <strong>Copy Ngrok URL</strong>
-                        <div class="ngrok-code">
-                            After running ngrok, you'll see:<br>
-                            Forwarding https://abc-123-456.ngrok.io -> http://localhost:80
-                        </div>
-                        <div class="ngrok-tip">
-                            📝 Copy the URL: <strong>abc-123-456.ngrok.io</strong>
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">7</span>
-                        <strong>Use in This App</strong>
-                        <div class="ngrok-code">
-                            1. Paste ngrok URL in "Camera IP Address" field<br>
-                            2. Set Connection Method to "Cloud"<br>
-                            3. Click "Connect to Camera"
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-warning">
-                        <strong>⚠️ Important Notes:</strong>
-                        <ul style="margin: 10px 0 10px 20px;">
-                            <li>Free ngrok: URL changes every time you restart</li>
-                            <li>Session expires after 2-8 hours</li>
-                            <li>For permanent URL, upgrade to paid plan</li>
-                            <li>Keep ngrok running in background</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="ngrok-tip">
-                        <strong>💡 Pro Tips:</strong>
-                        <ul style="margin: 10px 0 10px 20px;">
-                            <li>Save successful ngrok URLs in "Saved Cameras"</li>
-                            <li>Use "Auto-detect" button if ngrok is running locally</li>
-                            <li>Share the ngrok URL with friends/family</li>
-                            <li>Test with "Test Connection" button first</li>
-                        </ul>
-                    </div>
-                    
-                    <div style="text-align: center; margin-top: 20px;">
-                        <button class="btn btn-primary" onclick="closeNgrokSetup()">
-                            <i class="fas fa-check"></i> Got it!
-                        </button>
-                        <button class="btn btn-success" onclick="copyNgrokGuide()">
-                            <i class="fas fa-copy"></i> Copy Guide
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Proxy Setup Modal -->
-    <div class="modal" id="proxySetupModal">
-        <div class="modal-content" style="max-width: 700px;">
-            <div class="modal-header">
-                <h3><i class="fas fa-server"></i> CORS Proxy Setup Guide</h3>
-                <button onclick="closeProxySetup()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div style="max-height: 500px; overflow-y: auto; padding-right: 10px;">
-                    <h3 style="color: #2196f3; margin-bottom: 20px;">🔧 Cài đặt Proxy Server</h3>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">1</span>
-                        <strong>Cài đặt Node.js</strong>
-                        <div class="ngrok-tip">
-                            Tải từ: <a href="https://nodejs.org" target="_blank">nodejs.org</a> → Cài đặt bình thường
-                        </div>
-                        <div class="ngrok-code">
-                            # Kiểm tra cài đặt:<br>
-                            node --version<br>
-                            npm --version
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">2</span>
-                        <strong>Tạo thư mục project</strong>
-                        <div class="ngrok-code">
-                            # Tạo thư mục mới:<br>
-                            mkdir esp32-cam-viewer<br>
-                            cd esp32-cam-viewer
-                        </div>
-                        <div class="ngrok-tip">
-                            📁 Đặt file HTML và server.js vào cùng thư mục
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">3</span>
-                        <strong>Cài đặt dependencies</strong>
-                        <div class="ngrok-code">
-                            # Chạy trong thư mục project:<br>
-                            npm init -y<br>
-                            npm install express cors axios http-proxy-middleware
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">4</span>
-                        <strong>Khởi động Proxy Server</strong>
-                        <div class="ngrok-code">
-                            # Chạy server:<br>
-                            node server.js
-                        </div>
-                        <div class="ngrok-tip">
-                            ✅ Server sẽ chạy tại: <strong>http://localhost:3000</strong>
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-step">
-                        <span class="ngrok-step-number">5</span>
-                        <strong>Truy cập ứng dụng</strong>
-                        <div class="ngrok-code">
-                            Mở trình duyệt:<br>
-                            http://localhost:3000
-                        </div>
-                        <div class="ngrok-tip">
-                            🌐 Proxy sẽ tự động xử lý tất cả lỗi CORS!
-                        </div>
-                    </div>
-                    
-                    <div class="ngrok-warning">
-                        <strong>⚠️ Lưu ý quan trọng:</strong>
-                        <ul style="margin: 10px 0 10px 20px;">
-                            <li>Giữ terminal mở trong khi sử dụng</li>
-                            <li>Port 3000 phải trống</li>
-                            <li>Firewall có thể chặn kết nối</li>
-                            <li>Proxy chỉ chạy trên local network</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="ngrok-tip">
-                        <strong>💡 Lợi ích của Proxy:</strong>
-                        <ul style="margin: 10px 0 10px 20px;">
-                            <li>Không còn lỗi CORS</li>
-                            <li>Auto-discovery camera</li>
-                            <li>Ngrok integration</li>
-                            <li>Better error handling</li>
-                            <li>Performance optimization</li>
-                        </ul>
-                    </div>
-                    
-                    <div style="text-align: center; margin-top: 20px;">
-                        <button class="btn btn-primary" onclick="closeProxySetup()">
-                            <i class="fas fa-check"></i> Đã hiểu!
-                        </button>
-                        <button class="btn btn-success" onclick="copyProxyGuide()">
-                            <i class="fas fa-copy"></i> Sao chép hướng dẫn
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- JavaScript -->
     <script>
         // ================= CONFIGURATION =================
-        const APP_CONFIG = {
+        const CONFIG = {
             version: '5.0.0',
-            localStorageKeys: {
-                cameraHistory: 'esp32cam_history',
-                settings: 'esp32cam_settings',
-                lastCamera: 'esp32cam_last_camera',
-                ngrokToken: 'esp32cam_ngrok_token',
-                ngrokUrls: 'esp32cam_ngrok_urls',
-                proxyServer: 'esp32cam_proxy_server'
-            },
-            defaultSettings: {
-                quality: 10,
-                brightness: 0,
-                contrast: 0,
-                saturation: 0,
-                framesize: 10,
-                autoConnect: true,
-                showFPS: true,
-                autoDiscover: true,
-                autoDetectNgrok: true,
-                useProxy: true
-            },
-            apiEndpoints: {
-                stream: '/stream',
-                capture: '/capture',
-                status: '/status',
-                control: '/control',
-                reboot: '/reboot',
-                wifiScan: '/wifi-scan'
+            defaultIp: window.location.hostname || '192.168.4.1',
+            mqttBrokers: {
+                'broker.emqx.io:8083': 'broker.emqx.io',
+                'test.mosquitto.org:8081': 'test.mosquitto.org',
+                'broker.hivemq.com:8000': 'broker.hivemq.com'
             }
         };
-        
-        // ================= CORS PROXY CONFIGURATION =================
-        const PROXY_CONFIG = {
-            enabled: true,
-            server: 'http://localhost:3000',
-            endpoints: {
-                camera: '/proxy/camera',
-                stream: '/proxy/stream',
-                discover: '/api/discover',
-                ngrokStatus: '/api/ngrok/status',
-                health: '/health'
-            },
-            autoStart: true,
-            fallbackDirect: true
-        };
-        
-        // ================= STATE MANAGEMENT =================
+
+        // ================= STATE =================
         let state = {
-            currentCamera: null,
-            isConnected: false,
+            currentPage: 'home',
+            streamType: null,
             isStreaming: false,
-            connectionMethod: 'direct',
             fps: 0,
-            latency: 0,
-            cameraList: [],
-            settings: {},
-            ngrokToken: '',
-            ngrokUrls: [],
-            proxyEnabled: true,
-            streamInterval: null,
-            fpsInterval: null,
-            statsInterval: null,
-            proxyStatus: 'checking'
+            frameCount: 0,
+            lastFrameTime: Date.now(),
+            wsConnection: null,
+            mqttClient: null,
+            mqttConnected: false,
+            cameraIp: CONFIG.defaultIp,
+            flashState: false,
+            settings: {
+                quality: 10,
+                fps: 10,
+                resolution: 10
+            },
+            devices: []
         };
-        
+
         // ================= PAGE ROUTING =================
-        function handlePageRouting() {
-            let currentPage = 'home';
-            const hash = window.location.hash;
+        function showPage(page) {
+            state.currentPage = page;
             
-            if (hash === '#camera') {
-                currentPage = 'camera';
-            } else if (hash === '#dashboard') {
-                currentPage = 'dashboard';
-            }
+            // Hide all pages
+            document.getElementById('homePage').style.display = 'none';
+            document.getElementById('streamPage').style.display = 'none';
+            document.getElementById('mqttPage').style.display = 'none';
+            document.getElementById('settingsPage').style.display = 'none';
             
-            document.getElementById('cameraContainer').style.display = 'none';
-            document.getElementById('homeContainer').style.display = 'none';
-            document.getElementById('dashboardContainer').style.display = 'none';
+            // Update nav links
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
             
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-            
-            switch(currentPage) {
-                case 'camera':
-                    document.getElementById('cameraContainer').style.display = 'grid';
-                    document.querySelector('a[href="#camera"]').classList.add('active');
-                    initializeCameraPage();
+            // Show selected page
+            switch(page) {
+                case 'home':
+                    document.getElementById('homePage').style.display = 'block';
+                    document.querySelectorAll('.nav-link')[0].classList.add('active');
                     break;
-                case 'dashboard':
-                    document.getElementById('dashboardContainer').style.display = 'block';
-                    document.querySelector('a[href="#dashboard"]').classList.add('active');
+                case 'stream':
+                    document.getElementById('streamPage').style.display = 'grid';
+                    document.querySelectorAll('.nav-link')[1].classList.add('active');
                     break;
-                default:
-                    document.getElementById('homeContainer').style.display = 'block';
-                    document.querySelector('a[href="index.html"]').classList.add('active');
-                    checkHomeProxyStatus();
+                case 'mqtt':
+                    document.getElementById('mqttPage').style.display = 'block';
+                    document.querySelectorAll('.nav-link')[2].classList.add('active');
+                    break;
+                case 'settings':
+                    document.getElementById('settingsPage').style.display = 'block';
+                    document.querySelectorAll('.nav-link')[3].classList.add('active');
+                    loadDeviceInfo();
                     break;
             }
         }
-        
-        // ================= INITIALIZATION =================
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('ESP32-CAM Viewer v' + APP_CONFIG.version + ' with CORS Proxy initialized');
+
+        // ================= UTILITY FUNCTIONS =================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
             
-            // Load settings
-            loadSettings();
-            loadProxySettings();
+            let icon = 'ℹ️';
+            if (type === 'success') icon = '✅';
+            if (type === 'error') icon = '❌';
+            if (type === 'warning') icon = '⚠️';
             
-            // Setup navigation
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const href = this.getAttribute('href');
-                    
-                    if (href === '#camera' || href === '#dashboard') {
-                        window.location.hash = href;
-                    } else if (href.includes('index.html')) {
-                        window.location.hash = '';
-                    }
-                    
-                    handlePageRouting();
-                });
-            });
+            toast.innerHTML = `${icon} ${message}`;
+            container.appendChild(toast);
             
-            window.addEventListener('hashchange', handlePageRouting);
-            handlePageRouting();
-        });
-        
-        function initializeCameraPage() {
-            loadCameraHistory();
-            loadLastCamera();
-            loadNgrokSettings();
-            initEventListeners();
-            startStatsUpdate();
-            loadCameraFromURL();
-            checkProxyStatus();
-            
-            if (state.settings.autoConnect && state.currentCamera) {
-                setTimeout(() => {
-                    connectToCamera(state.currentCamera);
-                }, 1000);
-            }
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
-        
-        // ================= PROXY FUNCTIONS =================
-        async function proxyFetch(cameraUrl, endpoint = '', options = {}) {
-            if (!PROXY_CONFIG.enabled || !state.proxyEnabled) {
-                return await directFetch(cameraUrl + endpoint, options);
-            }
-            
-            try {
-                const proxyUrl = `${PROXY_CONFIG.server}${PROXY_CONFIG.endpoints.camera}?url=${encodeURIComponent(cameraUrl + endpoint)}`;
-                
-                const response = await fetch(proxyUrl, {
-                    ...options,
-                    headers: {
-                        'Accept': 'application/json, image/jpeg, multipart/x-mixed-replace',
-                        ...options.headers
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Proxy error: ${response.status}`);
-                }
-                
-                return response;
-            } catch (proxyError) {
-                console.warn('Proxy failed, trying direct connection:', proxyError.message);
-                
-                if (PROXY_CONFIG.fallbackDirect) {
-                    return await directFetch(cameraUrl + endpoint, options);
-                }
-                
-                throw proxyError;
-            }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
         }
-        
-        async function directFetch(url, options = {}) {
-            return await fetch(url, {
-                ...options,
-                mode: 'cors',
-                cache: 'no-cache'
-            });
-        }
-        
-        async function connectToCamera(cameraUrl) {
-            if (state.proxyEnabled) {
-                return await connectToCameraWithProxy(cameraUrl);
-            } else {
-                return await connectToCameraDirect(cameraUrl);
-            }
-        }
-        
-        async function connectToCameraWithProxy(cameraUrl) {
-            showToast('Connecting via proxy...', 'info');
-            updateConnectionStatus(false);
-            
-            try {
-                const testUrl = `${PROXY_CONFIG.server}${PROXY_CONFIG.endpoints.camera}?url=${encodeURIComponent(cameraUrl + APP_CONFIG.apiEndpoints.status)}`;
-                
-                const response = await fetch(testUrl, {
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Proxy HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                // Handle proxy response
-                if (data.error) {
-                    throw new Error(data.message || 'Proxy error');
-                }
-                
-                // Success!
-                state.currentCamera = cameraUrl;
-                state.isConnected = true;
-                
-                saveCameraToHistory(cameraUrl, data.camera_name || 'ESP32-CAM');
-                
-                const urlObj = new URL(cameraUrl);
-                const ipInput = document.getElementById('cameraIp');
-                const portInput = document.getElementById('cameraPort');
-                
-                if (ipInput) ipInput.value = urlObj.hostname;
-                if (portInput) portInput.value = urlObj.port || '80';
-                
-                updateCameraInfo(data);
-                
-                // Start stream through proxy
-                setTimeout(() => startStream(), 500);
-                
-                showToast(`Connected via proxy to ${data.camera_name || 'ESP32-CAM'}`, 'success');
-                
-                return true;
-                
-            } catch (error) {
-                console.error('Proxy connection failed:', error);
-                showToast(`Proxy failed: ${error.message}. Trying direct...`, 'warning');
-                
-                // Fallback to direct connection
-                if (PROXY_CONFIG.fallbackDirect) {
-                    return await connectToCameraDirect(cameraUrl);
-                }
-                
-                return false;
-            }
-        }
-        
-        async function connectToCameraDirect(cameraUrl) {
-            showToast('Connecting directly...', 'info');
-            updateConnectionStatus(false);
-            
-            try {
-                if (!cameraUrl.startsWith('http://') && !cameraUrl.startsWith('https://')) {
-                    cameraUrl = 'http://' + cameraUrl;
-                }
-                
-                const testUrl = cameraUrl + APP_CONFIG.apiEndpoints.status;
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-                
-                const response = await fetch(testUrl, {
-                    mode: 'cors',
-                    signal: controller.signal,
-                    headers: {
-                        'Accept': 'application/json',
-                        'Cache-Control': 'no-cache'
-                    }
-                }).finally(() => clearTimeout(timeoutId));
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                saveCameraToHistory(cameraUrl, data.camera_name || 'ESP32-CAM');
-                
-                state.currentCamera = cameraUrl;
-                state.isConnected = true;
-                
-                const urlObj = new URL(cameraUrl);
-                const ipInput = document.getElementById('cameraIp');
-                const portInput = document.getElementById('cameraPort');
-                
-                if (ipInput) ipInput.value = urlObj.hostname;
-                if (portInput) portInput.value = urlObj.port || '80';
-                
-                updateCameraInfo(data);
-                
-                setTimeout(() => startStream(), 500);
-                
-                showToast(`Connected to ${data.camera_name || 'ESP32-CAM'}`, 'success');
-                
-                return true;
-                
-            } catch (error) {
-                console.error('Direct connection failed:', error);
-                
-                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
-                    showToast('CORS issue detected. Try enabling proxy!', 'error');
-                } else {
-                    showToast(`Connection failed: ${error.message}`, 'error');
-                }
-                
-                updateConnectionStatus(false);
-                return false;
-            }
-        }
-        
-        function startStream() {
-            if (!state.currentCamera || state.isStreaming) {
+
+        // ================= STREAM FUNCTIONS =================
+        function connectDirect() {
+            const ip = document.getElementById('cameraIp').value;
+            if (!ip) {
+                showToast('Please enter camera IP', 'warning');
                 return;
             }
             
-            stopStream();
+            state.cameraIp = ip;
+            showToast(`Connecting to ${ip}...`, 'info');
             
-            const videoElement = document.getElementById('videoStream');
-            const placeholder = document.getElementById('streamPlaceholder');
-            
-            if (!videoElement || !placeholder) {
-                showToast('Stream elements not found', 'error');
+            // Test connection
+            fetch(`http://${ip}/status`)
+                .then(response => response.json())
+                .then(data => {
+                    showToast('Connected to camera', 'success');
+                    updateStreamStatus(true);
+                })
+                .catch(error => {
+                    showToast('Failed to connect: ' + error, 'error');
+                });
+        }
+
+        function startMjpeg() {
+            if (!state.cameraIp) {
+                showToast('Please connect to camera first', 'warning');
                 return;
             }
             
-            let streamUrl;
-            if (state.proxyEnabled) {
-                const streamEndpoint = APP_CONFIG.apiEndpoints.stream;
-                streamUrl = `${PROXY_CONFIG.server}${PROXY_CONFIG.endpoints.stream}?url=${encodeURIComponent(state.currentCamera + streamEndpoint)}`;
-            } else {
-                streamUrl = state.currentCamera + APP_CONFIG.apiEndpoints.stream;
-            }
+            const img = document.getElementById('videoStream');
+            const placeholder = document.getElementById('videoPlaceholder');
+            const status = document.getElementById('streamStatus');
             
-            const timestamp = Date.now();
-            const finalUrl = `${streamUrl}?t=${timestamp}&github=true`;
-            
-            videoElement.style.display = 'block';
+            img.src = `http://${state.cameraIp}/stream?t=${Date.now()}`;
+            img.style.display = 'block';
             placeholder.style.display = 'none';
             
-            videoElement.onload = () => {
-                updateConnectionStatus(true);
-                showToast('Live stream started', 'success');
-            };
+            status.className = 'status-indicator status-online';
+            status.innerHTML = '<span>●</span><span>Streaming MJPEG</span>';
             
-            videoElement.onerror = (e) => {
-                console.error('Stream error:', e);
-                showToast('Stream error. Check camera connection.', 'error');
-                updateConnectionStatus(false);
-                stopStream();
-            };
-            
-            videoElement.src = finalUrl;
+            state.streamType = 'mjpeg';
             state.isStreaming = true;
             
-            startFPSCounter();
+            startFpsMonitor();
+            showToast('MJPEG stream started', 'success');
         }
-        
-        // ================= PROXY MANAGEMENT =================
-        function loadProxySettings() {
+
+        function connectWebSocket() {
+            if (!state.cameraIp) {
+                showToast('Please connect to camera first', 'warning');
+                return;
+            }
+            
+            const port = document.getElementById('wsPort').value || 8080;
+            
+            if (state.wsConnection) {
+                state.wsConnection.close();
+            }
+            
             try {
-                const savedProxy = localStorage.getItem(APP_CONFIG.localStorageKeys.proxyServer);
-                if (savedProxy) {
-                    PROXY_CONFIG.server = savedProxy;
-                }
+                state.wsConnection = new WebSocket(`ws://${state.cameraIp}:${port}`);
                 
-                const proxyCheckbox = document.getElementById('proxyEnabled');
-                if (proxyCheckbox) {
-                    proxyCheckbox.checked = state.settings.useProxy;
-                    state.proxyEnabled = state.settings.useProxy;
-                }
+                state.wsConnection.onopen = () => {
+                    showToast('WebSocket connected', 'success');
+                    updateStreamStatus(true, 'WebSocket');
+                };
+                
+                state.wsConnection.onmessage = (event) => {
+                    if (event.data instanceof Blob) {
+                        const url = URL.createObjectURL(event.data);
+                        const img = document.getElementById('videoStream');
+                        const placeholder = document.getElementById('videoPlaceholder');
+                        
+                        img.src = url;
+                        img.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        
+                        state.frameCount++;
+                        
+                        // Update frame size
+                        document.getElementById('frameSize').textContent = 
+                            (event.data.size / 1024).toFixed(1);
+                    }
+                };
+                
+                state.wsConnection.onerror = (error) => {
+                    showToast('WebSocket error', 'error');
+                };
+                
+                state.wsConnection.onclose = () => {
+                    showToast('WebSocket disconnected', 'info');
+                    if (state.streamType === 'websocket') {
+                        updateStreamStatus(false);
+                    }
+                };
+                
+                state.streamType = 'websocket';
+                state.isStreaming = true;
+                startFpsMonitor();
+                
             } catch (error) {
-                console.error('Error loading proxy settings:', error);
+                showToast('WebSocket failed: ' + error, 'error');
             }
         }
-        
-        async function checkProxyStatus() {
+
+        function stopStream() {
+            const img = document.getElementById('videoStream');
+            const placeholder = document.getElementById('videoPlaceholder');
+            const status = document.getElementById('streamStatus');
+            
+            img.style.display = 'none';
+            img.src = '';
+            placeholder.style.display = 'flex';
+            
+            if (state.wsConnection) {
+                state.wsConnection.close();
+                state.wsConnection = null;
+            }
+            
+            state.streamType = null;
+            state.isStreaming = false;
+            state.frameCount = 0;
+            
+            status.className = 'status-indicator status-offline';
+            status.innerHTML = '<span>●</span><span>Offline</span>';
+            
+            showToast('Stream stopped');
+        }
+
+        function updateStreamStatus(online, type = 'MJPEG') {
+            const status = document.getElementById('streamStatus');
+            if (online) {
+                status.className = 'status-indicator status-online';
+                status.innerHTML = `<span>●</span><span>Streaming ${type}</span>`;
+            } else {
+                status.className = 'status-indicator status-offline';
+                status.innerHTML = '<span>●</span><span>Offline</span>';
+            }
+        }
+
+        function startFpsMonitor() {
+            setInterval(() => {
+                if (state.isStreaming) {
+                    const now = Date.now();
+                    const diff = now - state.lastFrameTime;
+                    
+                    if (diff > 0) {
+                        state.fps = Math.round((state.frameCount * 1000) / diff);
+                        document.getElementById('fpsValue').textContent = state.fps;
+                        document.getElementById('mqttFps').textContent = state.fps;
+                        document.getElementById('mqttFrames').textContent = state.frameCount;
+                    }
+                    
+                    state.frameCount = 0;
+                    state.lastFrameTime = now;
+                }
+            }, 1000);
+        }
+
+        // ================= CAMERA CONTROL =================
+        async function toggleFlash() {
+            if (!state.cameraIp) {
+                showToast('Not connected to camera', 'warning');
+                return;
+            }
+            
+            state.flashState = !state.flashState;
+            
             try {
-                updateProxyStatus('checking');
-                
-                const response = await fetch(`${PROXY_CONFIG.server}${PROXY_CONFIG.endpoints.health}`, { 
-                    timeout: 3000 
-                }).catch(() => null);
-                
-                if (response && response.ok) {
-                    updateProxyStatus('online');
-                    return true;
-                } else {
-                    updateProxyStatus('offline');
-                    return false;
-                }
+                const response = await fetch(`http://${state.cameraIp}/control?flash=${state.flashState ? 1 : 0}`);
+                const data = await response.json();
+                showToast(`Flash ${state.flashState ? 'ON' : 'OFF'}`, 'success');
             } catch (error) {
-                updateProxyStatus('error');
-                return false;
+                showToast('Failed to control flash', 'error');
             }
         }
-        
-        async function checkHomeProxyStatus() {
+
+        async function captureImage() {
+            if (!state.cameraIp) {
+                showToast('Not connected to camera', 'warning');
+                return;
+            }
+            
             try {
-                const response = await fetch(`${PROXY_CONFIG.server}${PROXY_CONFIG.endpoints.health}`, { 
-                    timeout: 3000 
-                }).catch(() => null);
+                const response = await fetch(`http://${state.cameraIp}/capture?t=${Date.now()}`);
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
                 
-                const indicator = document.getElementById('homeProxyIndicator');
-                const statusText = document.getElementById('homeProxyStatusText');
+                document.getElementById('screenshotImage').src = url;
+                document.getElementById('screenshotModal').style.display = 'flex';
                 
-                if (response && response.ok) {
-                    indicator.className = 'proxy-indicator proxy-online';
-                    statusText.textContent = 'Proxy Server: Online';
-                    statusText.style.color = '#4caf50';
-                } else {
-                    indicator.className = 'proxy-indicator proxy-offline';
-                    statusText.textContent = 'Proxy Server: Offline';
-                    statusText.style.color = '#f44336';
-                }
+                showToast('Image captured', 'success');
             } catch (error) {
-                const indicator = document.getElementById('homeProxyIndicator');
-                const statusText = document.getElementById('homeProxyStatusText');
-                indicator.className = 'proxy-indicator proxy-offline';
-                statusText.textContent = 'Proxy Server: Error';
-                statusText.style.color = '#ff9800';
+                showToast('Capture failed: ' + error, 'error');
             }
         }
-        
-        function updateProxyStatus(status) {
-            state.proxyStatus = status;
-            const indicator = document.getElementById('proxyIndicator');
-            const statusText = document.getElementById('proxyStatusText');
+
+        function downloadScreenshot() {
+            const img = document.getElementById('screenshotImage');
+            const link = document.createElement('a');
+            link.download = `esp32-cam-${Date.now()}.jpg`;
+            link.href = img.src;
+            link.click();
+        }
+
+        async function setQuality(quality) {
+            if (!state.cameraIp) {
+                showToast('Not connected to camera', 'warning');
+                return;
+            }
             
-            if (!indicator || !statusText) return;
-            
-            switch(status) {
-                case 'online':
-                    indicator.className = 'proxy-indicator proxy-online';
-                    statusText.textContent = 'Proxy Server: Online';
-                    statusText.style.color = '#4caf50';
-                    break;
-                case 'offline':
-                    indicator.className = 'proxy-indicator proxy-offline';
-                    statusText.textContent = 'Proxy Server: Offline';
-                    statusText.style.color = '#f44336';
-                    break;
-                case 'checking':
-                    indicator.className = 'proxy-indicator proxy-checking';
-                    statusText.textContent = 'Checking proxy...';
-                    statusText.style.color = '#ff9800';
-                    break;
-                case 'error':
-                    indicator.className = 'proxy-indicator proxy-offline';
-                    statusText.textContent = 'Proxy Error';
-                    statusText.style.color = '#f44336';
-                    break;
+            try {
+                await fetch(`http://${state.cameraIp}/control?quality=${quality}`);
+                showToast(`Quality set to ${quality}`, 'success');
+            } catch (error) {
+                showToast('Failed to set quality', 'error');
             }
         }
-        
-        function toggleProxy() {
-            const checkbox = document.getElementById('proxyEnabled');
-            if (checkbox) {
-                state.proxyEnabled = checkbox.checked;
-                state.settings.useProxy = checkbox.checked;
-                saveSettings();
-                showToast(`CORS Proxy ${state.proxyEnabled ? 'enabled' : 'disabled'}`, 'info');
+
+        async function setFPS(fps) {
+            if (!state.cameraIp) {
+                showToast('Not connected to camera', 'warning');
+                return;
+            }
+            
+            try {
+                await fetch(`http://${state.cameraIp}/control?fps=${fps}`);
+                showToast(`FPS set to ${fps}`, 'success');
+            } catch (error) {
+                showToast('Failed to set FPS', 'error');
             }
         }
-        
-        function startProxyServer() {
-            showToast('Starting proxy server instructions...', 'info');
+
+        async function applyCameraSettings() {
+            if (!state.cameraIp) {
+                showToast('Not connected to camera', 'warning');
+                return;
+            }
             
-            const instructions = `
-🚀 HOW TO START PROXY SERVER:
-
-1️⃣ Install Node.js (from nodejs.org)
-2️⃣ Open Terminal/CMD in this folder
-3️⃣ Run: npm install
-4️⃣ Run: node server.js
-
-The proxy will start at: http://localhost:3000
-
-📁 Files needed:
-• server.js (already created)
-• package.json (auto-generated)
-• Your HTML file
-
-✅ Benefits:
-• Solves ALL CORS errors
-• Auto-camera discovery
-• Ngrok integration
-• Better error handling
-    `;
+            const quality = document.getElementById('qualitySlider').value;
+            const fps = document.getElementById('fpsSlider').value;
+            const resolution = document.getElementById('resolution').value;
             
-            document.getElementById('proxySetupModal').style.display = 'flex';
-        }
-        
-        function closeProxySetup() {
-            document.getElementById('proxySetupModal').style.display = 'none';
-        }
-        
-        function copyProxyGuide() {
-            const guide = `CORS Proxy Setup Guide for ESP32-CAM Viewer
-
-1. Install Node.js from nodejs.org
-2. Create project folder
-3. Add server.js and HTML files
-4. Open terminal in folder
-5. Run: npm install
-6. Run: node server.js
-7. Access at: http://localhost:3000
-
-This solves ALL CORS errors!`;
-            
-            navigator.clipboard.writeText(guide)
-                .then(() => showToast('Proxy guide copied to clipboard!', 'success'))
-                .catch(() => showToast('Failed to copy guide', 'error'));
-        }
-        
-        function openProxySettings() {
-            const settings = prompt('Proxy Server URL:', PROXY_CONFIG.server);
-            if (settings) {
-                PROXY_CONFIG.server = settings;
-                localStorage.setItem(APP_CONFIG.localStorageKeys.proxyServer, settings);
-                showToast('Proxy settings updated', 'success');
-                checkProxyStatus();
+            try {
+                await fetch(`http://${state.cameraIp}/control?quality=${quality}&fps=${fps}`);
+                showToast('Settings applied', 'success');
+            } catch (error) {
+                showToast('Failed to apply settings', 'error');
             }
         }
-        
-        // ================= ORIGINAL FUNCTIONS (đã có sẵn trong code gốc) =================
-        // Các hàm gốc đã được giữ nguyên và chỉ thêm proxy support
-        // ... (giữ nguyên tất cả các hàm gốc)
-        
-        // ================= EXPORT FUNCTIONS =================
-        window.startStream = startStream;
+
+        async function loadDeviceInfo() {
+            if (!state.cameraIp) return;
+            
+            try {
+                const response = await fetch(`http://${state.cameraIp}/status`);
+                const data = await response.json();
+                
+                document.getElementById('infoDeviceId').textContent = data.id || '-';
+                document.getElementById('infoIp').textContent = data.ip || '-';
+                document.getElementById('infoMac').textContent = data.mac || '-';
+                
+                document.getElementById('rssiValue').textContent = data.rssi || '-';
+                document.getElementById('uptimeValue').textContent = 
+                    Math.floor((data.uptime || 0) / 60) + 'm';
+                
+            } catch (error) {
+                console.log('Could not load device info');
+            }
+        }
+
+        // ================= MQTT FUNCTIONS =================
+        function handleBrokerChange() {
+            const select = document.getElementById('mqttBroker');
+            const customGroup = document.getElementById('customBrokerGroup');
+            
+            if (select.value === 'custom') {
+                customGroup.style.display = 'block';
+            } else {
+                customGroup.style.display = 'none';
+            }
+        }
+
+        function connectMQTT() {
+            const brokerSelect = document.getElementById('mqttBroker');
+            let brokerUrl = brokerSelect.value;
+            
+            if (brokerUrl === 'custom') {
+                brokerUrl = document.getElementById('customBroker').value;
+                if (!brokerUrl) {
+                    showToast('Please enter custom broker', 'warning');
+                    return;
+                }
+            }
+            
+            const clientId = document.getElementById('mqttClientId').value || 
+                            'webclient_' + Math.random().toString(36).substring(7);
+            const username = document.getElementById('mqttUsername').value;
+            const password = document.getElementById('mqttPassword').value;
+            
+            // Add ws:// if not present
+            if (!brokerUrl.startsWith('ws://') && !brokerUrl.startsWith('wss://')) {
+                brokerUrl = 'ws://' + brokerUrl;
+            }
+            
+            const options = {
+                clientId: clientId,
+                keepalive: 60,
+                clean: true,
+                reconnectPeriod: 5000
+            };
+            
+            if (username) options.username = username;
+            if (password) options.password = password;
+            
+            showToast('Connecting to MQTT...', 'info');
+            
+            try {
+                if (state.mqttClient) {
+                    state.mqttClient.end();
+                }
+                
+                state.mqttClient = mqtt.connect(brokerUrl, options);
+                
+                state.mqttClient.on('connect', () => {
+                    state.mqttConnected = true;
+                    
+                    document.getElementById('mqttStatus').innerHTML = 
+                        '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#28a745;margin-right:8px;"></span>' +
+                        'MQTT: Connected to ' + brokerUrl;
+                    
+                    showToast('MQTT connected', 'success');
+                    
+                    // Subscribe to default topics
+                    subscribeTopics();
+                });
+                
+                state.mqttClient.on('message', (topic, message) => {
+                    if (topic.includes('/image')) {
+                        // Display image
+                        const blob = new Blob([message], { type: 'image/jpeg' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        const img = document.getElementById('mqttVideoStream');
+                        const placeholder = document.getElementById('mqttPlaceholder');
+                        
+                        img.src = url;
+                        img.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        
+                        // Update main stream if on stream page
+                        if (state.currentPage === 'stream') {
+                            document.getElementById('videoStream').src = url;
+                            document.getElementById('videoStream').style.display = 'block';
+                            document.getElementById('videoPlaceholder').style.display = 'none';
+                        }
+                        
+                        state.frameCount++;
+                        
+                    } else if (topic.includes('/status')) {
+                        try {
+                            const status = JSON.parse(message.toString());
+                            updateDeviceStatus(status);
+                        } catch (e) {}
+                    }
+                });
+                
+                state.mqttClient.on('error', (error) => {
+                    showToast('MQTT error: ' + error, 'error');
+                });
+                
+                state.mqttClient.on('close', () => {
+                    state.mqttConnected = false;
+                    document.getElementById('mqttStatus').innerHTML = 
+                        '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#dc3545;margin-right:8px;"></span>' +
+                        'MQTT: Disconnected';
+                });
+                
+            } catch (error) {
+                showToast('MQTT connection failed: ' + error, 'error');
+            }
+        }
+
+        function disconnectMQTT() {
+            if (state.mqttClient) {
+                state.mqttClient.end();
+                state.mqttClient = null;
+                state.mqttConnected = false;
+                
+                document.getElementById('mqttStatus').innerHTML = 
+                    '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#dc3545;margin-right:8px;"></span>' +
+                    'MQTT: Disconnected';
+                
+                showToast('MQTT disconnected', 'info');
+            }
+        }
+
+        function subscribeTopics() {
+            if (!state.mqttClient || !state.mqttConnected) {
+                showToast('MQTT not connected', 'warning');
+                return;
+            }
+            
+            const imageTopic = document.getElementById('imageTopic').value;
+            const controlTopic = document.getElementById('controlTopic').value;
+            
+            state.mqttClient.subscribe(imageTopic, (err) => {
+                if (!err) {
+                    showToast(`Subscribed to ${imageTopic}`, 'success');
+                }
+            });
+            
+            state.mqttClient.subscribe(controlTopic);
+        }
+
+        function scanDevices() {
+            if (!state.mqttClient || !state.mqttConnected) {
+                showToast('MQTT not connected', 'warning');
+                return;
+            }
+            
+            showToast('Scanning for devices...', 'info');
+            state.mqttClient.publish('esp32cam/discover', 'scan');
+            
+            // Simulate device discovery
+            setTimeout(() => {
+                const devices = [
+                    { id: 'cam-123456', name: 'ESP32-CAM Living Room', ip: '192.168.1.100', online: true },
+                    { id: 'cam-789012', name: 'ESP32-CAM Garden', ip: '192.168.1.101', online: true },
+                    { id: 'cam-345678', name: 'ESP32-CAM Garage', ip: '192.168.1.102', online: false }
+                ];
+                
+                updateDeviceList(devices);
+            }, 2000);
+        }
+
+        function updateDeviceList(devices) {
+            state.devices = devices;
+            const list = document.getElementById('deviceList');
+            
+            if (devices.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No devices found</p>';
+                return;
+            }
+            
+            list.innerHTML = devices.map(device => `
+                <div class="device-item ${device.online ? 'online' : 'offline'}">
+                    <div class="device-info">
+                        <span class="device-dot ${device.online ? '' : 'offline'}"></span>
+                        <div>
+                            <strong>${device.name}</strong><br>
+                            <small>${device.id}</small>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-primary" onclick="selectDevice('${device.id}')" ${!device.online ? 'disabled' : ''}>
+                        Select
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function updateDeviceStatus(status) {
+            // Update device status in list
+        }
+
+        function selectDevice(deviceId) {
+            document.getElementById('imageTopic').value = `esp32cam/${deviceId}/image`;
+            document.getElementById('controlTopic').value = `esp32cam/${deviceId}/control`;
+            showToast(`Selected device: ${deviceId}`, 'success');
+            
+            // Subscribe to new topics
+            subscribeTopics();
+        }
+
+        function sendMqttCommand(command) {
+            if (!state.mqttClient || !state.mqttConnected) {
+                showToast('MQTT not connected', 'warning');
+                return;
+            }
+            
+            const controlTopic = document.getElementById('controlTopic').value;
+            state.mqttClient.publish(controlTopic, command);
+            showToast(`Sent: ${command}`, 'info');
+        }
+
+        // ================= ADVANCED =================
+        function rebootCamera() {
+            if (confirm('Reboot camera?')) {
+                if (state.cameraIp) {
+                    fetch(`http://${state.cameraIp}/control?reboot=1`);
+                    showToast('Rebooting camera...', 'warning');
+                    setTimeout(() => window.location.reload(), 5000);
+                } else if (state.mqttConnected) {
+                    sendMqttCommand('reboot');
+                }
+            }
+        }
+
+        // ================= INITIALIZATION =================
+        document.addEventListener('DOMContentLoaded', () => {
+            showPage('home');
+            
+            // Load saved settings
+            const savedIp = localStorage.getItem('cameraIp');
+            if (savedIp) {
+                document.getElementById('cameraIp').value = savedIp;
+                state.cameraIp = savedIp;
+            }
+            
+            // Start status updates
+            setInterval(() => {
+                if (state.cameraIp && state.currentPage === 'stream') {
+                    loadDeviceInfo();
+                }
+            }, 5000);
+        });
+
+        // Save camera IP
+        window.addEventListener('beforeunload', () => {
+            if (state.cameraIp) {
+                localStorage.setItem('cameraIp', state.cameraIp);
+            }
+        });
+
+        // Expose functions to global scope
+        window.showPage = showPage;
+        window.connectDirect = connectDirect;
+        window.startMjpeg = startMjpeg;
+        window.connectWebSocket = connectWebSocket;
         window.stopStream = stopStream;
-        window.captureImage = captureImage;
         window.toggleFlash = toggleFlash;
-        window.takeSnapshot = takeSnapshot;
-        window.connectCamera = connectCamera;
-        window.setConnectionMethod = setConnectionMethod;
-        window.scanNetwork = scanNetwork;
-        window.applySettings = applySettings;
-        window.updateQuality = updateQuality;
-        window.updateBrightness = updateBrightness;
-        window.updateResolution = updateResolution;
+        window.captureImage = captureImage;
+        window.setQuality = setQuality;
+        window.setFPS = setFPS;
+        window.applyCameraSettings = applyCameraSettings;
         window.rebootCamera = rebootCamera;
-        window.resetCamera = resetCamera;
-        window.showQRCode = showQRCode;
-        window.shareCamera = shareCamera;
-        window.fullscreen = fullscreen;
+        window.closeModal = closeModal;
         window.downloadScreenshot = downloadScreenshot;
-        window.closeScreenshot = closeScreenshot;
-        window.closeQRCode = closeQRCode;
-        window.connectToCamera = connectToCamera;
-        window.removeCamera = removeCamera;
-        window.clearSavedCameras = clearSavedCameras;
-        window.discoverLocalCameras = discoverLocalCameras;
-        
-        // Ngrok functions
-        window.showNgrokSetup = showNgrokSetup;
-        window.closeNgrokSetup = closeNgrokSetup;
-        window.copyNgrokGuide = copyNgrokGuide;
-        window.copyNgrokToken = copyNgrokToken;
-        window.connectViaNgrok = connectViaNgrok;
-        window.autoDetectNgrok = autoDetectNgrok;
-        window.testNgrokConnection = testNgrokConnection;
-        
-        // Proxy functions
-        window.checkProxyStatus = checkProxyStatus;
-        window.toggleProxy = toggleProxy;
-        window.startProxyServer = startProxyServer;
-        window.openProxySettings = openProxySettings;
-        window.closeProxySetup = closeProxySetup;
-        window.copyProxyGuide = copyProxyGuide;
-        
-        console.log('✅ ESP32-CAM Viewer v' + APP_CONFIG.version + ' with complete CORS Proxy loaded');
-    </script>
-    
-    <!-- Thêm phần JavaScript gốc của bạn ở đây -->
-    <script>
-        // ================= CÁC HÀM GỐC TỪ CODE BAN ĐẦU =================
-        // ... (dán toàn bộ phần JavaScript gốc của bạn vào đây)
-        // Bao gồm tất cả các hàm như:
-        // - stopStream, captureImage, toggleFlash, takeSnapshot, etc.
-        // - showToast, updateConnectionStatus, etc.
-        // - loadSettings, saveSettings, etc.
-        // - loadCameraHistory, renderCameraList, etc.
+        window.handleBrokerChange = handleBrokerChange;
+        window.connectMQTT = connectMQTT;
+        window.disconnectMQTT = disconnectMQTT;
+        window.subscribeTopics = subscribeTopics;
+        window.scanDevices = scanDevices;
+        window.sendMqttCommand = sendMqttCommand;
+        window.selectDevice = selectDevice;
     </script>
 </body>
 </html>
