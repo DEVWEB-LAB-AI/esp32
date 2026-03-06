@@ -29,8 +29,8 @@
 #define FPS_ADDR 264
 
 // ================= CẤU HÌNH MẶC ĐỊNH =================
-char ssid[32] = "Mai Dang Luong";
-char password[64] = "luong123";
+char ssid[32] = "Tang 3";
+char password[64] = "01111957v";
 char mqtt_server[64] = "broker.emqx.io";
 int mqtt_port = 1883;
 char deviceName[32] = "ESP32-CAM-Modem";
