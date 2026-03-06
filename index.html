@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ESP32-CAM Viewer</title>
+    <title>ESP32-CAM Remote Viewer - MQTT</title>
     
     <!-- MQTT Library -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
@@ -113,17 +113,21 @@
             aspect-ratio: 4/3;
         }
 
-        #videoStream {
+        #videoStream, #mqttVideoStream {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            display: none;
         }
 
         .placeholder {
             text-align: center;
             color: #666;
             padding: 40px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
         }
 
         .placeholder i {
@@ -437,38 +441,38 @@
             display: block;
         }
 
-        .slider-group {
+        .connection-info {
+            background: linear-gradient(135deg, #f6f9fc, #e6f0f5);
+            padding: 15px;
+            border-radius: 10px;
             margin-bottom: 20px;
+            border-left: 4px solid #4a6fa5;
         }
 
-        .slider-label {
+        .info-row {
             display: flex;
             justify-content: space-between;
             margin-bottom: 8px;
+            font-size: 14px;
         }
 
-        .slider {
-            width: 100%;
-            height: 8px;
-            border-radius: 4px;
-            background: #e0e0e0;
-            outline: none;
-            -webkit-appearance: none;
+        .info-label {
+            color: #666;
+            font-weight: 500;
         }
 
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
+        .info-value {
+            color: #4a6fa5;
+            font-weight: 600;
+        }
+
+        .badge {
             background: #4a6fa5;
-            cursor: pointer;
-        }
-
-        hr {
-            border: none;
-            border-top: 1px solid #e0e0e0;
-            margin: 20px 0;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 8px;
         }
     </style>
 </head>
@@ -476,12 +480,12 @@
     <header class="header">
         <div class="nav-container">
             <div class="logo">
-                <span>📷 ESP32-CAM Viewer</span>
+                <span>📷 ESP32-CAM Remote Viewer</span>
             </div>
             <div class="nav-links">
-                <a href="#" class="nav-link active" onclick="showPage('home')">Home</a>
-                <a href="#" class="nav-link" onclick="showPage('stream')">Stream</a>
-                <a href="#" class="nav-link" onclick="showPage('mqtt')">MQTT</a>
+                <a href="#" class="nav-link" onclick="showPage('home')">Home</a>
+                <a href="#" class="nav-link active" onclick="showPage('mqtt')">Remote Stream</a>
+                <a href="#" class="nav-link" onclick="showPage('local')">Local Stream</a>
                 <a href="#" class="nav-link" onclick="showPage('settings')">Settings</a>
             </div>
         </div>
@@ -496,293 +500,313 @@
                 </div>
                 <h2 style="color: #4a6fa5; margin-bottom: 20px;">ESP32-CAM Remote Viewer</h2>
                 <p style="color: #666; max-width: 600px; margin: 0 auto 30px;">
-                    View your ESP32-CAM stream remotely via MQTT or WebSocket. 
-                    Connect to your camera from anywhere with 4G/WiFi.
+                    View your ESP32-CAM stream from anywhere in the world via MQTT.
+                    Your camera is configured with ID: <strong>cam-000000</strong>
                 </p>
-                <button class="btn btn-primary" onclick="showPage('stream')" style="width: auto; padding: 12px 30px;">
-                    Get Started
+                <div style="background: #f0f7ff; padding: 20px; border-radius: 10px; max-width: 400px; margin: 0 auto 30px;">
+                    <p style="margin: 5px 0;"><strong>📡 Device Info:</strong></p>
+                    <p style="margin: 5px 0;">IP: 192.168.1.24</p>
+                    <p style="margin: 5px 0;">Device ID: cam-000000</p>
+                    <p style="margin: 5px 0;">RSSI: -50 dBm</p>
+                    <p style="margin: 5px 0;">MQTT: broker.emqx.io</p>
+                </div>
+                <button class="btn btn-primary" onclick="showPage('mqtt')" style="width: auto; padding: 12px 30px;">
+                    Start Remote Viewing
                 </button>
             </div>
         </div>
 
-        <!-- Stream Page -->
-        <div id="streamPage" class="main-panel">
+        <!-- MQTT Remote Stream Page -->
+        <div id="mqttPage" class="main-panel">
             <!-- Video Panel -->
             <div class="video-panel">
                 <div class="video-header">
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <span>📹 Live Stream</span>
+                        <span>🌍 Remote Stream (via MQTT)</span>
+                        <span class="badge">cam-000000</span>
                     </div>
-                    <div class="status-indicator status-offline" id="streamStatus">
+                    <div class="status-indicator status-offline" id="mqttConnectionStatus">
                         <span>●</span>
-                        <span>Offline</span>
+                        <span>Disconnected</span>
                     </div>
                 </div>
                 
-                <div class="video-container" id="videoContainer">
-                    <img id="videoStream" alt="Live Stream">
-                    <div class="placeholder" id="videoPlaceholder">
-                        <div>📹</div>
-                        <h3>No Stream</h3>
-                        <p>Connect to start viewing</p>
+                <div class="video-container" id="mqttVideoContainer">
+                    <img id="mqttVideoStream" style="width:100%; display: none;">
+                    <div class="placeholder" id="mqttPlaceholder">
+                        <div style="font-size: 64px;">🌐</div>
+                        <h3>Waiting for MQTT Stream</h3>
+                        <p id="placeholderMessage">Connect to MQTT broker to view from anywhere</p>
+                        <div style="margin-top: 20px; font-size: 14px; color: #999;">
+                            Device ID: cam-000000<br>
+                            Broker: broker.emqx.io:8083
+                        </div>
                     </div>
-                </div>
-                
-                <div class="video-controls">
-                    <button class="btn btn-primary" onclick="startMjpeg()">
-                        <span>▶</span> MJPEG
-                    </button>
-                    <button class="btn btn-success" onclick="connectWebSocket()">
-                        <span>🔌</span> WebSocket
-                    </button>
-                    <button class="btn btn-warning" onclick="toggleFlash()">
-                        <span>💡</span> Flash
-                    </button>
-                    <button class="btn btn-info" onclick="captureImage()">
-                        <span>📸</span> Capture
-                    </button>
-                    <button class="btn btn-danger" onclick="stopStream()">
-                        <span>⏹️</span> Stop
-                    </button>
                 </div>
                 
                 <div style="padding: 15px; background: #f8f9fa; border-top: 1px solid #e0e0e0;">
                     <div class="stats-grid">
                         <div class="stat-card">
-                            <div class="stat-value" id="fpsValue">0</div>
+                            <div class="stat-value" id="mqttFps">0</div>
                             <div class="stat-label">FPS</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value" id="frameSize">0</div>
+                            <div class="stat-value" id="mqttFrameSize">0</div>
                             <div class="stat-label">KB</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value" id="rssiValue">-</div>
-                            <div class="stat-label">RSSI</div>
+                            <div class="stat-value" id="mqttFrames">0</div>
+                            <div class="stat-label">Frames</div>
                         </div>
                         <div class="stat-card">
-                            <div class="stat-value" id="uptimeValue">0</div>
-                            <div class="stat-label">Uptime</div>
+                            <div class="stat-value" id="mqttRssi">-</div>
+                            <div class="stat-label">RSSI</div>
                         </div>
                     </div>
+                </div>
+                
+                <div class="video-controls">
+                    <button class="btn btn-success" onclick="captureImage()">
+                        <span>📸</span> Capture
+                    </button>
+                    <button class="btn btn-warning" onclick="sendMqttCommand('flash_toggle')">
+                        <span>💡</span> Toggle Flash
+                    </button>
+                    <button class="btn btn-info" onclick="sendMqttCommand('quality:10')">
+                        <span>🎚️</span> Quality 10
+                    </button>
+                    <button class="btn btn-info" onclick="sendMqttCommand('quality:20')">
+                        <span>🎚️</span> Quality 20
+                    </button>
                 </div>
             </div>
             
             <!-- Control Panel -->
             <div class="control-panel">
                 <div class="panel-header">
-                    <span>⚙️ Quick Controls</span>
+                    <span>🌐 MQTT Remote Control</span>
                 </div>
                 
                 <div class="panel-content">
+                    <!-- Auto-connect info -->
+                    <div class="connection-info">
+                        <div class="info-row">
+                            <span class="info-label">📡 Device ID:</span>
+                            <span class="info-value">cam-000000</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🌍 Broker:</span>
+                            <span class="info-value">broker.emqx.io:8083</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">📋 Image Topic:</span>
+                            <span class="info-value">esp32cam/cam-000000/image</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🎮 Control Topic:</span>
+                            <span class="info-value">esp32cam/cam-000000/control</span>
+                        </div>
+                    </div>
+                    
                     <div class="section">
                         <div class="section-title">
-                            <span>🔌 Direct Connection</span>
+                            <span>🔌 MQTT Connection</span>
                         </div>
+                        
                         <div class="input-group">
-                            <label class="input-label">Camera IP:</label>
-                            <input type="text" id="cameraIp" class="input-field" 
-                                   placeholder="192.168.1.x" value="192.168.4.1">
+                            <label class="input-label">MQTT Broker (WebSocket):</label>
+                            <select id="mqttBroker" class="input-field">
+                                <option value="broker.emqx.io:8083" selected>broker.emqx.io (Recommended)</option>
+                                <option value="test.mosquitto.org:8081">test.mosquitto.org</option>
+                                <option value="broker.hivemq.com:8000">broker.hivemq.com</option>
+                            </select>
                         </div>
-                        <button class="btn btn-primary" onclick="connectDirect()">
-                            Connect Direct
-                        </button>
-                    </div>
-                    
-                    <div class="section">
-                        <div class="section-title">
-                            <span>📡 MJPEG Stream</span>
-                        </div>
-                        <button class="btn btn-success" onclick="startMjpeg()">
-                            Start MJPEG Stream
-                        </button>
-                        <p style="font-size: 12px; color: #666; margin-top: 8px;">
-                            Best for local network, works on all browsers
-                        </p>
-                    </div>
-                    
-                    <div class="section">
-                        <div class="section-title">
-                            <span>🔌 WebSocket</span>
-                        </div>
+                        
                         <div class="input-group">
-                            <label class="input-label">WebSocket Port:</label>
-                            <input type="text" id="wsPort" class="input-field" value="8080">
+                            <label class="input-label">Device ID:</label>
+                            <input type="text" id="deviceId" class="input-field" value="cam-000000">
                         </div>
-                        <button class="btn btn-info" onclick="connectWebSocket()">
-                            Connect WebSocket
+                        
+                        <div class="input-group">
+                            <label class="input-label">Username (from ESP32 log):</label>
+                            <input type="text" id="mqttUsername" class="input-field" value="camtest">
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0;">
+                            <button class="btn btn-success" onclick="connectMQTT()">
+                                Connect
+                            </button>
+                            <button class="btn btn-danger" onclick="disconnectMQTT()">
+                                Disconnect
+                            </button>
+                        </div>
+                        
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;" id="mqttStatus">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #dc3545;" id="mqttStatusDot"></span>
+                                <span id="mqttStatusText">MQTT: Disconnected</span>
+                            </div>
+                            <div style="font-size: 12px; margin-top: 8px; color: #666;" id="mqttDetail"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-title">
+                            <span>📡 Topics</span>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label class="input-label">Image Topic:</label>
+                            <input type="text" id="imageTopic" class="input-field" value="esp32cam/cam-000000/image">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label class="input-label">Control Topic:</label>
+                            <input type="text" id="controlTopic" class="input-field" value="esp32cam/cam-000000/control">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label class="input-label">Status Topic:</label>
+                            <input type="text" id="statusTopic" class="input-field" value="esp32cam/cam-000000/status">
+                        </div>
+                        
+                        <button class="btn btn-primary" onclick="subscribeTopics()" style="margin-top: 10px;">
+                            Subscribe
                         </button>
                     </div>
                     
                     <div class="section">
                         <div class="section-title">
-                            <span>⚡ Quick Actions</span>
+                            <span>🎮 Remote Controls</span>
                         </div>
+                        
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                            <button class="btn btn-warning" onclick="setQuality(10)">Q:10</button>
-                            <button class="btn btn-warning" onclick="setQuality(20)">Q:20</button>
-                            <button class="btn btn-info" onclick="setFPS(5)">5 FPS</button>
-                            <button class="btn btn-info" onclick="setFPS(10)">10 FPS</button>
+                            <button class="btn btn-warning" onclick="sendMqttCommand('flash_on')">
+                                Flash ON
+                            </button>
+                            <button class="btn btn-secondary" onclick="sendMqttCommand('flash_off')">
+                                Flash OFF
+                            </button>
+                            <button class="btn btn-info" onclick="sendMqttCommand('quality:10')">
+                                Quality 10
+                            </button>
+                            <button class="btn btn-info" onclick="sendMqttCommand('quality:20')">
+                                Quality 20
+                            </button>
+                            <button class="btn btn-info" onclick="sendMqttCommand('fps:5')">
+                                5 FPS
+                            </button>
+                            <button class="btn btn-info" onclick="sendMqttCommand('fps:10')">
+                                10 FPS
+                            </button>
+                            <button class="btn btn-success" onclick="sendMqttCommand('stream_start')">
+                                Start Stream
+                            </button>
+                            <button class="btn btn-danger" onclick="sendMqttCommand('stream_stop')">
+                                Stop Stream
+                            </button>
+                            <button class="btn btn-primary" onclick="sendMqttCommand('status')">
+                                Get Status
+                            </button>
+                            <button class="btn btn-danger" onclick="sendMqttCommand('reboot')">
+                                Reboot
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-title">
+                            <span>ℹ️ Device Status</span>
+                        </div>
+                        
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;" id="deviceStatus">
+                            <p><strong>Device:</strong> <span id="statusDeviceId">cam-000000</span></p>
+                            <p><strong>IP:</strong> <span id="statusIp">192.168.1.24</span></p>
+                            <p><strong>RSSI:</strong> <span id="statusRssi">-50 dBm</span></p>
+                            <p><strong>Uptime:</strong> <span id="statusUptime">-</span></p>
+                            <p><strong>Last Seen:</strong> <span id="statusLastSeen">-</span></p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- MQTT Page -->
-        <div id="mqttPage" style="display: none;">
+        <!-- Local Stream Page -->
+        <div id="localPage" style="display: none;">
             <div class="main-panel">
                 <div class="video-panel">
                     <div class="video-header">
-                        <span>🌐 MQTT Remote Stream</span>
-                    </div>
-                    
-                    <div class="video-container" style="min-height: 300px;" id="mqttVideoContainer">
-                        <img id="mqttVideoStream" style="width:100%; display:none;">
-                        <div class="placeholder" id="mqttPlaceholder">
-                            <div>🌐</div>
-                            <h3>MQTT Not Connected</h3>
-                            <p>Connect to MQTT broker to view remote cameras</p>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span>📹 Local Stream (LAN only)</span>
+                        </div>
+                        <div class="status-indicator status-offline" id="localStreamStatus">
+                            <span>●</span>
+                            <span>Offline</span>
                         </div>
                     </div>
                     
-                    <div style="padding: 20px;">
-                        <div class="stats-grid">
-                            <div class="stat-card">
-                                <div class="stat-value" id="mqttFps">0</div>
-                                <div class="stat-label">FPS</div>
-                            </div>
-                            <div class="stat-card">
-                                <div class="stat-value" id="mqttFrames">0</div>
-                                <div class="stat-label">Frames</div>
-                            </div>
+                    <div class="video-container" id="localVideoContainer">
+                        <img id="localVideoStream" style="width:100%; display:none;">
+                        <div class="placeholder" id="localPlaceholder">
+                            <div>📹</div>
+                            <h3>Local Stream</h3>
+                            <p>Connect to camera on local network (192.168.1.24)</p>
                         </div>
+                    </div>
+                    
+                    <div class="video-controls">
+                        <button class="btn btn-primary" onclick="startLocalMjpeg()">
+                            <span>▶</span> Start MJPEG
+                        </button>
+                        <button class="btn btn-danger" onclick="stopLocalStream()">
+                            <span>⏹️</span> Stop
+                        </button>
                     </div>
                 </div>
                 
                 <div class="control-panel">
                     <div class="panel-header">
-                        <span>🌐 MQTT Configuration</span>
+                        <span>🔌 Local Connection</span>
                     </div>
                     
                     <div class="panel-content">
-                        <div class="section">
-                            <div class="section-title">
-                                <span>🔌 Broker Settings</span>
+                        <div class="connection-info">
+                            <div class="info-row">
+                                <span class="info-label">📡 Camera IP:</span>
+                                <span class="info-value">192.168.1.24</span>
                             </div>
-                            
-                            <div class="input-group">
-                                <label class="input-label">MQTT Broker:</label>
-                                <select id="mqttBroker" class="input-field" onchange="handleBrokerChange()">
-                                    <option value="broker.emqx.io:8083">broker.emqx.io (Global)</option>
-                                    <option value="test.mosquitto.org:8081">test.mosquitto.org</option>
-                                    <option value="broker.hivemq.com:8000">broker.hivemq.com</option>
-                                    <option value="custom">Custom...</option>
-                                </select>
-                            </div>
-                            
-                            <div id="customBrokerGroup" style="display: none;">
-                                <div class="input-group">
-                                    <label class="input-label">Custom Broker:</label>
-                                    <input type="text" id="customBroker" class="input-field" 
-                                           placeholder="broker.emqx.io:8083">
-                                </div>
-                            </div>
-                            
-                            <div class="input-group">
-                                <label class="input-label">Client ID:</label>
-                                <input type="text" id="mqttClientId" class="input-field" 
-                                       value="webclient_" + Math.random().toString(36).substring(7)">
-                            </div>
-                            
-                            <div class="input-group">
-                                <label class="input-label">Username (optional):</label>
-                                <input type="text" id="mqttUsername" class="input-field">
-                            </div>
-                            
-                            <div class="input-group">
-                                <label class="input-label">Password (optional):</label>
-                                <input type="password" id="mqttPassword" class="input-field">
-                            </div>
-                            
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0;">
-                                <button class="btn btn-success" onclick="connectMQTT()">
-                                    Connect
-                                </button>
-                                <button class="btn btn-danger" onclick="disconnectMQTT()">
-                                    Disconnect
-                                </button>
-                            </div>
-                            
-                            <div style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin: 10px 0;" id="mqttStatus">
-                                <span class="status-dot" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #dc3545; margin-right: 8px;"></span>
-                                MQTT: Disconnected
+                            <div class="info-row">
+                                <span class="info-label">🔌 WebSocket Port:</span>
+                                <span class="info-value">8080</span>
                             </div>
                         </div>
                         
                         <div class="section">
-                            <div class="section-title">
-                                <span>📡 Topic Settings</span>
-                            </div>
-                            
                             <div class="input-group">
-                                <label class="input-label">Image Topic:</label>
-                                <input type="text" id="imageTopic" class="input-field" 
-                                       value="esp32cam/+/image">
+                                <label class="input-label">Camera IP:</label>
+                                <input type="text" id="localCameraIp" class="input-field" value="192.168.1.24">
                             </div>
                             
-                            <div class="input-group">
-                                <label class="input-label">Control Topic:</label>
-                                <input type="text" id="controlTopic" class="input-field" 
-                                       value="esp32cam/+/control">
-                            </div>
-                            
-                            <button class="btn btn-primary" onclick="subscribeTopics()">
-                                Subscribe
+                            <button class="btn btn-primary" onclick="connectLocalCamera()">
+                                Test Connection
                             </button>
                         </div>
                         
                         <div class="section">
                             <div class="section-title">
-                                <span>📱 Available Devices</span>
-                            </div>
-                            
-                            <div class="device-list" id="deviceList">
-                                <p style="text-align: center; color: #666; padding: 20px;">
-                                    No devices found
-                                </p>
-                            </div>
-                            
-                            <button class="btn btn-info" onclick="scanDevices()">
-                                Scan for Devices
-                            </button>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="section-title">
-                                <span>🎮 Remote Control</span>
+                                <span>⚡ Local Controls</span>
                             </div>
                             
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                <button class="btn btn-warning" onclick="sendMqttCommand('flash_on')">
-                                    Flash ON
-                                </button>
-                                <button class="btn btn-secondary" onclick="sendMqttCommand('flash_off')">
-                                    Flash OFF
-                                </button>
-                                <button class="btn btn-info" onclick="sendMqttCommand('quality:10')">
-                                    Quality 10
-                                </button>
-                                <button class="btn btn-info" onclick="sendMqttCommand('quality:20')">
-                                    Quality 20
-                                </button>
-                                <button class="btn btn-success" onclick="sendMqttCommand('stream_start')">
-                                    Start Stream
-                                </button>
-                                <button class="btn btn-danger" onclick="sendMqttCommand('stream_stop')">
-                                    Stop Stream
-                                </button>
+                                <button class="btn btn-warning" onclick="localToggleFlash()">Flash</button>
+                                <button class="btn btn-info" onclick="localCapture()">Capture</button>
                             </div>
+                        </div>
+                        
+                        <div class="section">
+                            <p style="font-size: 12px; color: #999; text-align: center;">
+                                ⚠️ Local stream only works when you're on the same WiFi network as the ESP32-CAM
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -794,83 +818,79 @@
             <div class="main-panel" style="grid-template-columns: 1fr;">
                 <div class="control-panel">
                     <div class="panel-header">
-                        <span>⚙️ Camera Settings</span>
+                        <span>⚙️ Configuration</span>
                     </div>
                     
                     <div class="panel-content">
                         <div class="section">
                             <div class="section-title">
-                                <span>🎚️ Image Settings</span>
+                                <span>📡 ESP32-CAM Info (from log)</span>
                             </div>
                             
-                            <div class="slider-group">
-                                <div class="slider-label">
-                                    <span>Quality (1-63):</span>
-                                    <span id="qualityDisplay">10</span>
-                                </div>
-                                <input type="range" class="slider" id="qualitySlider" 
-                                       min="1" max="63" value="10" 
-                                       oninput="document.getElementById('qualityDisplay').innerText=this.value">
+                            <div style="background: #f0f7ff; padding: 20px; border-radius: 10px;">
+                                <p><strong>Device ID:</strong> cam-000000</p>
+                                <p><strong>IP Address:</strong> 192.168.1.24</p>
+                                <p><strong>WiFi:</strong> Tang 3</p>
+                                <p><strong>RSSI:</strong> -50 dBm</p>
+                                <p><strong>MAC:</strong> From device</p>
+                                <p><strong>Firmware:</strong> ESP32-CAM MQTT REMOTE STREAMING v5.1</p>
+                                <p><strong>MQTT Broker:</strong> broker.emqx.io:1883</p>
+                                <p><strong>MQTT Username:</strong> camtest</p>
                             </div>
-                            
-                            <div class="slider-group">
-                                <div class="slider-label">
-                                    <span>Target FPS (1-30):</span>
-                                    <span id="fpsDisplay">10</span>
-                                </div>
-                                <input type="range" class="slider" id="fpsSlider" 
-                                       min="1" max="30" value="10"
-                                       oninput="document.getElementById('fpsDisplay').innerText=this.value">
+                        </div>
+                        
+                        <div class="section">
+                            <div class="section-title">
+                                <span>🔧 MQTT Settings</span>
                             </div>
                             
                             <div class="input-group">
-                                <label class="input-label">Resolution:</label>
-                                <select id="resolution" class="input-field">
-                                    <option value="5">96x96 (ICON)</option>
-                                    <option value="6">160x120 (QQVGA)</option>
-                                    <option value="7">320x240 (QVGA)</option>
-                                    <option value="8">400x296 (CIF)</option>
-                                    <option value="9">640x480 (VGA)</option>
-                                    <option value="10" selected>800x600 (SVGA)</option>
-                                    <option value="11">1024x768 (XGA)</option>
-                                    <option value="12">1280x1024 (SXGA)</option>
-                                    <option value="13">1600x1200 (UXGA)</option>
-                                </select>
+                                <label class="input-label">MQTT Broker (TCP for ESP32):</label>
+                                <input type="text" class="input-field" value="broker.emqx.io:1883" readonly>
                             </div>
                             
-                            <button class="btn btn-primary" onclick="applyCameraSettings()">
-                                Apply Settings
-                            </button>
+                            <div class="input-group">
+                                <label class="input-label">MQTT Broker (WebSocket for Web):</label>
+                                <input type="text" class="input-field" value="broker.emqx.io:8083" readonly>
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">Username:</label>
+                                <input type="text" class="input-field" value="camtest" readonly>
+                            </div>
                         </div>
-                        
-                        <hr>
                         
                         <div class="section">
                             <div class="section-title">
-                                <span>ℹ️ Device Information</span>
+                                <span>📋 Topics</span>
                             </div>
                             
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                <p><strong>Device ID:</strong> <span id="infoDeviceId">-</span></p>
-                                <p><strong>IP Address:</strong> <span id="infoIp">-</span></p>
-                                <p><strong>MAC Address:</strong> <span id="infoMac">-</span></p>
-                                <p><strong>Firmware:</strong> ESP32-CAM v5.0</p>
+                                <p><strong>Image:</strong> esp32cam/cam-000000/image</p>
+                                <p><strong>Control:</strong> esp32cam/cam-000000/control</p>
+                                <p><strong>Status:</strong> esp32cam/cam-000000/status</p>
                             </div>
                         </div>
                         
-                        <hr>
-                        
                         <div class="section">
                             <div class="section-title">
-                                <span>⚡ Advanced</span>
+                                <span>🌐 Stream URLs</span>
                             </div>
                             
-                            <button class="btn btn-danger" onclick="rebootCamera()" style="margin-bottom: 10px;">
-                                Reboot Camera
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
+                                <p><strong>MJPEG:</strong> http://192.168.1.24/stream</p>
+                                <p><strong>Capture:</strong> http://192.168.1.24/capture</p>
+                                <p><strong>WebSocket:</strong> ws://192.168.1.24:8080</p>
+                                <p><strong>Web Config:</strong> http://192.168.1.24/config</p>
+                            </div>
+                        </div>
+                        
+                        <div class="section">
+                            <button class="btn btn-primary" onclick="autoConfigure()">
+                                Auto-Configure from Log
                             </button>
-                            
-                            <button class="btn btn-warning" onclick="window.location.href='/config'">
-                                WiFi Configuration
+                            <button class="btn btn-info" onclick="showPage('mqtt')" style="margin-top: 10px;">
+                                Go to Remote Stream
                             </button>
                         </div>
                     </div>
@@ -902,34 +922,27 @@
     <script>
         // ================= CONFIGURATION =================
         const CONFIG = {
-            version: '5.0.0',
-            defaultIp: window.location.hostname || '192.168.4.1',
-            mqttBrokers: {
-                'broker.emqx.io:8083': 'broker.emqx.io',
-                'test.mosquitto.org:8081': 'test.mosquitto.org',
-                'broker.hivemq.com:8000': 'broker.hivemq.com'
+            deviceId: 'cam-000000',
+            localIp: '192.168.1.24',
+            mqttBroker: 'broker.emqx.io:8083',
+            mqttUsername: 'camtest',
+            topics: {
+                image: 'esp32cam/cam-000000/image',
+                control: 'esp32cam/cam-000000/control',
+                status: 'esp32cam/cam-000000/status'
             }
         };
 
         // ================= STATE =================
         let state = {
             currentPage: 'home',
-            streamType: null,
-            isStreaming: false,
-            fps: 0,
-            frameCount: 0,
-            lastFrameTime: Date.now(),
-            wsConnection: null,
             mqttClient: null,
             mqttConnected: false,
-            cameraIp: CONFIG.defaultIp,
-            flashState: false,
-            settings: {
-                quality: 10,
-                fps: 10,
-                resolution: 10
-            },
-            devices: []
+            frameCount: 0,
+            lastFrameTime: Date.now(),
+            fps: 0,
+            lastImageUrl: null,
+            deviceStatus: {}
         };
 
         // ================= PAGE ROUTING =================
@@ -938,8 +951,8 @@
             
             // Hide all pages
             document.getElementById('homePage').style.display = 'none';
-            document.getElementById('streamPage').style.display = 'none';
             document.getElementById('mqttPage').style.display = 'none';
+            document.getElementById('localPage').style.display = 'none';
             document.getElementById('settingsPage').style.display = 'none';
             
             // Update nav links
@@ -951,18 +964,17 @@
                     document.getElementById('homePage').style.display = 'block';
                     document.querySelectorAll('.nav-link')[0].classList.add('active');
                     break;
-                case 'stream':
-                    document.getElementById('streamPage').style.display = 'grid';
+                case 'mqtt':
+                    document.getElementById('mqttPage').style.display = 'grid';
                     document.querySelectorAll('.nav-link')[1].classList.add('active');
                     break;
-                case 'mqtt':
-                    document.getElementById('mqttPage').style.display = 'block';
+                case 'local':
+                    document.getElementById('localPage').style.display = 'grid';
                     document.querySelectorAll('.nav-link')[2].classList.add('active');
                     break;
                 case 'settings':
                     document.getElementById('settingsPage').style.display = 'block';
                     document.querySelectorAll('.nav-link')[3].classList.add('active');
-                    loadDeviceInfo();
                     break;
             }
         }
@@ -992,310 +1004,18 @@
             document.getElementById(modalId).style.display = 'none';
         }
 
-        // ================= STREAM FUNCTIONS =================
-        function connectDirect() {
-            const ip = document.getElementById('cameraIp').value;
-            if (!ip) {
-                showToast('Please enter camera IP', 'warning');
-                return;
-            }
-            
-            state.cameraIp = ip;
-            showToast(`Connecting to ${ip}...`, 'info');
-            
-            // Test connection
-            fetch(`http://${ip}/status`)
-                .then(response => response.json())
-                .then(data => {
-                    showToast('Connected to camera', 'success');
-                    updateStreamStatus(true);
-                })
-                .catch(error => {
-                    showToast('Failed to connect: ' + error, 'error');
-                });
-        }
-
-        function startMjpeg() {
-            if (!state.cameraIp) {
-                showToast('Please connect to camera first', 'warning');
-                return;
-            }
-            
-            const img = document.getElementById('videoStream');
-            const placeholder = document.getElementById('videoPlaceholder');
-            const status = document.getElementById('streamStatus');
-            
-            img.src = `http://${state.cameraIp}/stream?t=${Date.now()}`;
-            img.style.display = 'block';
-            placeholder.style.display = 'none';
-            
-            status.className = 'status-indicator status-online';
-            status.innerHTML = '<span>●</span><span>Streaming MJPEG</span>';
-            
-            state.streamType = 'mjpeg';
-            state.isStreaming = true;
-            
-            startFpsMonitor();
-            showToast('MJPEG stream started', 'success');
-        }
-
-        function connectWebSocket() {
-            if (!state.cameraIp) {
-                showToast('Please connect to camera first', 'warning');
-                return;
-            }
-            
-            const port = document.getElementById('wsPort').value || 8080;
-            
-            if (state.wsConnection) {
-                state.wsConnection.close();
-            }
-            
-            try {
-                state.wsConnection = new WebSocket(`ws://${state.cameraIp}:${port}`);
-                
-                state.wsConnection.onopen = () => {
-                    showToast('WebSocket connected', 'success');
-                    updateStreamStatus(true, 'WebSocket');
-                };
-                
-                state.wsConnection.onmessage = (event) => {
-                    if (event.data instanceof Blob) {
-                        const url = URL.createObjectURL(event.data);
-                        const img = document.getElementById('videoStream');
-                        const placeholder = document.getElementById('videoPlaceholder');
-                        
-                        img.src = url;
-                        img.style.display = 'block';
-                        placeholder.style.display = 'none';
-                        
-                        state.frameCount++;
-                        
-                        // Update frame size
-                        document.getElementById('frameSize').textContent = 
-                            (event.data.size / 1024).toFixed(1);
-                    }
-                };
-                
-                state.wsConnection.onerror = (error) => {
-                    showToast('WebSocket error', 'error');
-                };
-                
-                state.wsConnection.onclose = () => {
-                    showToast('WebSocket disconnected', 'info');
-                    if (state.streamType === 'websocket') {
-                        updateStreamStatus(false);
-                    }
-                };
-                
-                state.streamType = 'websocket';
-                state.isStreaming = true;
-                startFpsMonitor();
-                
-            } catch (error) {
-                showToast('WebSocket failed: ' + error, 'error');
-            }
-        }
-
-        function stopStream() {
-            const img = document.getElementById('videoStream');
-            const placeholder = document.getElementById('videoPlaceholder');
-            const status = document.getElementById('streamStatus');
-            
-            img.style.display = 'none';
-            img.src = '';
-            placeholder.style.display = 'flex';
-            
-            if (state.wsConnection) {
-                state.wsConnection.close();
-                state.wsConnection = null;
-            }
-            
-            state.streamType = null;
-            state.isStreaming = false;
-            state.frameCount = 0;
-            
-            status.className = 'status-indicator status-offline';
-            status.innerHTML = '<span>●</span><span>Offline</span>';
-            
-            showToast('Stream stopped');
-        }
-
-        function updateStreamStatus(online, type = 'MJPEG') {
-            const status = document.getElementById('streamStatus');
-            if (online) {
-                status.className = 'status-indicator status-online';
-                status.innerHTML = `<span>●</span><span>Streaming ${type}</span>`;
-            } else {
-                status.className = 'status-indicator status-offline';
-                status.innerHTML = '<span>●</span><span>Offline</span>';
-            }
-        }
-
-        function startFpsMonitor() {
-            setInterval(() => {
-                if (state.isStreaming) {
-                    const now = Date.now();
-                    const diff = now - state.lastFrameTime;
-                    
-                    if (diff > 0) {
-                        state.fps = Math.round((state.frameCount * 1000) / diff);
-                        document.getElementById('fpsValue').textContent = state.fps;
-                        document.getElementById('mqttFps').textContent = state.fps;
-                        document.getElementById('mqttFrames').textContent = state.frameCount;
-                    }
-                    
-                    state.frameCount = 0;
-                    state.lastFrameTime = now;
-                }
-            }, 1000);
-        }
-
-        // ================= CAMERA CONTROL =================
-        async function toggleFlash() {
-            if (!state.cameraIp) {
-                showToast('Not connected to camera', 'warning');
-                return;
-            }
-            
-            state.flashState = !state.flashState;
-            
-            try {
-                const response = await fetch(`http://${state.cameraIp}/control?flash=${state.flashState ? 1 : 0}`);
-                const data = await response.json();
-                showToast(`Flash ${state.flashState ? 'ON' : 'OFF'}`, 'success');
-            } catch (error) {
-                showToast('Failed to control flash', 'error');
-            }
-        }
-
-        async function captureImage() {
-            if (!state.cameraIp) {
-                showToast('Not connected to camera', 'warning');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`http://${state.cameraIp}/capture?t=${Date.now()}`);
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                
-                document.getElementById('screenshotImage').src = url;
-                document.getElementById('screenshotModal').style.display = 'flex';
-                
-                showToast('Image captured', 'success');
-            } catch (error) {
-                showToast('Capture failed: ' + error, 'error');
-            }
-        }
-
-        function downloadScreenshot() {
-            const img = document.getElementById('screenshotImage');
-            const link = document.createElement('a');
-            link.download = `esp32-cam-${Date.now()}.jpg`;
-            link.href = img.src;
-            link.click();
-        }
-
-        async function setQuality(quality) {
-            if (!state.cameraIp) {
-                showToast('Not connected to camera', 'warning');
-                return;
-            }
-            
-            try {
-                await fetch(`http://${state.cameraIp}/control?quality=${quality}`);
-                showToast(`Quality set to ${quality}`, 'success');
-            } catch (error) {
-                showToast('Failed to set quality', 'error');
-            }
-        }
-
-        async function setFPS(fps) {
-            if (!state.cameraIp) {
-                showToast('Not connected to camera', 'warning');
-                return;
-            }
-            
-            try {
-                await fetch(`http://${state.cameraIp}/control?fps=${fps}`);
-                showToast(`FPS set to ${fps}`, 'success');
-            } catch (error) {
-                showToast('Failed to set FPS', 'error');
-            }
-        }
-
-        async function applyCameraSettings() {
-            if (!state.cameraIp) {
-                showToast('Not connected to camera', 'warning');
-                return;
-            }
-            
-            const quality = document.getElementById('qualitySlider').value;
-            const fps = document.getElementById('fpsSlider').value;
-            const resolution = document.getElementById('resolution').value;
-            
-            try {
-                await fetch(`http://${state.cameraIp}/control?quality=${quality}&fps=${fps}`);
-                showToast('Settings applied', 'success');
-            } catch (error) {
-                showToast('Failed to apply settings', 'error');
-            }
-        }
-
-        async function loadDeviceInfo() {
-            if (!state.cameraIp) return;
-            
-            try {
-                const response = await fetch(`http://${state.cameraIp}/status`);
-                const data = await response.json();
-                
-                document.getElementById('infoDeviceId').textContent = data.id || '-';
-                document.getElementById('infoIp').textContent = data.ip || '-';
-                document.getElementById('infoMac').textContent = data.mac || '-';
-                
-                document.getElementById('rssiValue').textContent = data.rssi || '-';
-                document.getElementById('uptimeValue').textContent = 
-                    Math.floor((data.uptime || 0) / 60) + 'm';
-                
-            } catch (error) {
-                console.log('Could not load device info');
-            }
-        }
-
         // ================= MQTT FUNCTIONS =================
-        function handleBrokerChange() {
-            const select = document.getElementById('mqttBroker');
-            const customGroup = document.getElementById('customBrokerGroup');
-            
-            if (select.value === 'custom') {
-                customGroup.style.display = 'block';
-            } else {
-                customGroup.style.display = 'none';
-            }
-        }
-
         function connectMQTT() {
-            const brokerSelect = document.getElementById('mqttBroker');
-            let brokerUrl = brokerSelect.value;
-            
-            if (brokerUrl === 'custom') {
-                brokerUrl = document.getElementById('customBroker').value;
-                if (!brokerUrl) {
-                    showToast('Please enter custom broker', 'warning');
-                    return;
-                }
-            }
-            
-            const clientId = document.getElementById('mqttClientId').value || 
-                            'webclient_' + Math.random().toString(36).substring(7);
+            const broker = document.getElementById('mqttBroker').value;
+            const deviceId = document.getElementById('deviceId').value;
             const username = document.getElementById('mqttUsername').value;
-            const password = document.getElementById('mqttPassword').value;
             
-            // Add ws:// if not present
-            if (!brokerUrl.startsWith('ws://') && !brokerUrl.startsWith('wss://')) {
-                brokerUrl = 'ws://' + brokerUrl;
-            }
+            // Update topics with device ID
+            document.getElementById('imageTopic').value = `esp32cam/${deviceId}/image`;
+            document.getElementById('controlTopic').value = `esp32cam/${deviceId}/control`;
+            document.getElementById('statusTopic').value = `esp32cam/${deviceId}/status`;
+            
+            const clientId = 'webclient_' + Math.random().toString(36).substring(7);
             
             const options = {
                 clientId: clientId,
@@ -1305,7 +1025,6 @@
             };
             
             if (username) options.username = username;
-            if (password) options.password = password;
             
             showToast('Connecting to MQTT...', 'info');
             
@@ -1314,18 +1033,21 @@
                     state.mqttClient.end();
                 }
                 
-                state.mqttClient = mqtt.connect(brokerUrl, options);
+                state.mqttClient = mqtt.connect('ws://' + broker, options);
                 
                 state.mqttClient.on('connect', () => {
                     state.mqttConnected = true;
                     
-                    document.getElementById('mqttStatus').innerHTML = 
-                        '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#28a745;margin-right:8px;"></span>' +
-                        'MQTT: Connected to ' + brokerUrl;
+                    document.getElementById('mqttStatusDot').style.background = '#28a745';
+                    document.getElementById('mqttStatusText').innerHTML = 'MQTT: Connected to ' + broker;
+                    document.getElementById('mqttDetail').innerHTML = `Client ID: ${clientId}`;
                     
-                    showToast('MQTT connected', 'success');
+                    document.getElementById('mqttConnectionStatus').className = 'status-indicator status-online';
+                    document.getElementById('mqttConnectionStatus').innerHTML = '<span>●</span><span>Connected</span>';
                     
-                    // Subscribe to default topics
+                    showToast('MQTT connected successfully', 'success');
+                    
+                    // Auto subscribe
                     subscribeTopics();
                 });
                 
@@ -1342,20 +1064,33 @@
                         img.style.display = 'block';
                         placeholder.style.display = 'none';
                         
-                        // Update main stream if on stream page
-                        if (state.currentPage === 'stream') {
-                            document.getElementById('videoStream').src = url;
-                            document.getElementById('videoStream').style.display = 'block';
-                            document.getElementById('videoPlaceholder').style.display = 'none';
-                        }
-                        
+                        // Update stats
                         state.frameCount++;
+                        document.getElementById('mqttFrames').textContent = state.frameCount;
+                        document.getElementById('mqttFrameSize').textContent = (message.size / 1024).toFixed(1);
+                        
+                        // Update FPS
+                        const now = Date.now();
+                        const diff = now - state.lastFrameTime;
+                        if (diff > 0) {
+                            state.fps = Math.round((1000 / diff) * 10) / 10;
+                            document.getElementById('mqttFps').textContent = state.fps;
+                        }
+                        state.lastFrameTime = now;
+                        
+                        // Clean up old URL
+                        if (state.lastImageUrl) {
+                            URL.revokeObjectURL(state.lastImageUrl);
+                        }
+                        state.lastImageUrl = url;
                         
                     } else if (topic.includes('/status')) {
                         try {
                             const status = JSON.parse(message.toString());
                             updateDeviceStatus(status);
-                        } catch (e) {}
+                        } catch (e) {
+                            console.log('Status message:', message.toString());
+                        }
                     }
                 });
                 
@@ -1365,9 +1100,10 @@
                 
                 state.mqttClient.on('close', () => {
                     state.mqttConnected = false;
-                    document.getElementById('mqttStatus').innerHTML = 
-                        '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#dc3545;margin-right:8px;"></span>' +
-                        'MQTT: Disconnected';
+                    document.getElementById('mqttStatusDot').style.background = '#dc3545';
+                    document.getElementById('mqttStatusText').innerHTML = 'MQTT: Disconnected';
+                    document.getElementById('mqttConnectionStatus').className = 'status-indicator status-offline';
+                    document.getElementById('mqttConnectionStatus').innerHTML = '<span>●</span><span>Disconnected</span>';
                 });
                 
             } catch (error) {
@@ -1381,9 +1117,14 @@
                 state.mqttClient = null;
                 state.mqttConnected = false;
                 
-                document.getElementById('mqttStatus').innerHTML = 
-                    '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#dc3545;margin-right:8px;"></span>' +
-                    'MQTT: Disconnected';
+                document.getElementById('mqttStatusDot').style.background = '#dc3545';
+                document.getElementById('mqttStatusText').innerHTML = 'MQTT: Disconnected';
+                document.getElementById('mqttConnectionStatus').className = 'status-indicator status-offline';
+                document.getElementById('mqttConnectionStatus').innerHTML = '<span>●</span><span>Disconnected</span>';
+                
+                // Show placeholder
+                document.getElementById('mqttVideoStream').style.display = 'none';
+                document.getElementById('mqttPlaceholder').style.display = 'block';
                 
                 showToast('MQTT disconnected', 'info');
             }
@@ -1397,73 +1138,25 @@
             
             const imageTopic = document.getElementById('imageTopic').value;
             const controlTopic = document.getElementById('controlTopic').value;
+            const statusTopic = document.getElementById('statusTopic').value;
             
             state.mqttClient.subscribe(imageTopic, (err) => {
                 if (!err) {
-                    showToast(`Subscribed to ${imageTopic}`, 'success');
+                    showToast(`Subscribed to image topic`, 'success');
+                    document.getElementById('placeholderMessage').innerHTML = 'Waiting for images from ' + imageTopic;
                 }
             });
             
-            state.mqttClient.subscribe(controlTopic);
-        }
-
-        function scanDevices() {
-            if (!state.mqttClient || !state.mqttConnected) {
-                showToast('MQTT not connected', 'warning');
-                return;
-            }
+            state.mqttClient.subscribe(statusTopic, (err) => {
+                if (!err) {
+                    showToast(`Subscribed to status topic`, 'success');
+                }
+            });
             
-            showToast('Scanning for devices...', 'info');
-            state.mqttClient.publish('esp32cam/discover', 'scan');
-            
-            // Simulate device discovery
+            // Request status
             setTimeout(() => {
-                const devices = [
-                    { id: 'cam-123456', name: 'ESP32-CAM Living Room', ip: '192.168.1.100', online: true },
-                    { id: 'cam-789012', name: 'ESP32-CAM Garden', ip: '192.168.1.101', online: true },
-                    { id: 'cam-345678', name: 'ESP32-CAM Garage', ip: '192.168.1.102', online: false }
-                ];
-                
-                updateDeviceList(devices);
-            }, 2000);
-        }
-
-        function updateDeviceList(devices) {
-            state.devices = devices;
-            const list = document.getElementById('deviceList');
-            
-            if (devices.length === 0) {
-                list.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No devices found</p>';
-                return;
-            }
-            
-            list.innerHTML = devices.map(device => `
-                <div class="device-item ${device.online ? 'online' : 'offline'}">
-                    <div class="device-info">
-                        <span class="device-dot ${device.online ? '' : 'offline'}"></span>
-                        <div>
-                            <strong>${device.name}</strong><br>
-                            <small>${device.id}</small>
-                        </div>
-                    </div>
-                    <button class="btn btn-sm btn-primary" onclick="selectDevice('${device.id}')" ${!device.online ? 'disabled' : ''}>
-                        Select
-                    </button>
-                </div>
-            `).join('');
-        }
-
-        function updateDeviceStatus(status) {
-            // Update device status in list
-        }
-
-        function selectDevice(deviceId) {
-            document.getElementById('imageTopic').value = `esp32cam/${deviceId}/image`;
-            document.getElementById('controlTopic').value = `esp32cam/${deviceId}/control`;
-            showToast(`Selected device: ${deviceId}`, 'success');
-            
-            // Subscribe to new topics
-            subscribeTopics();
+                sendMqttCommand('status');
+            }, 1000);
         }
 
         function sendMqttCommand(command) {
@@ -1477,66 +1170,148 @@
             showToast(`Sent: ${command}`, 'info');
         }
 
-        // ================= ADVANCED =================
-        function rebootCamera() {
-            if (confirm('Reboot camera?')) {
-                if (state.cameraIp) {
-                    fetch(`http://${state.cameraIp}/control?reboot=1`);
-                    showToast('Rebooting camera...', 'warning');
-                    setTimeout(() => window.location.reload(), 5000);
-                } else if (state.mqttConnected) {
-                    sendMqttCommand('reboot');
-                }
+        function updateDeviceStatus(status) {
+            state.deviceStatus = status;
+            
+            document.getElementById('statusRssi').textContent = status.rssi || '-50 dBm';
+            document.getElementById('statusUptime').textContent = status.uptime || '-';
+            document.getElementById('statusLastSeen').textContent = new Date().toLocaleTimeString();
+            
+            if (status.ip) document.getElementById('statusIp').textContent = status.ip;
+            if (status.rssi) document.getElementById('mqttRssi').textContent = status.rssi;
+        }
+
+        // ================= CAPTURE FUNCTIONS =================
+        function captureImage() {
+            if (state.currentPage === 'mqtt' && state.mqttConnected) {
+                sendMqttCommand('capture');
+                showToast('Capture command sent', 'success');
+            } else {
+                showToast('Not connected to MQTT', 'warning');
             }
+        }
+
+        function downloadScreenshot() {
+            const img = document.getElementById('screenshotImage');
+            if (img.src) {
+                const link = document.createElement('a');
+                link.download = `esp32-cam-${Date.now()}.jpg`;
+                link.href = img.src;
+                link.click();
+            }
+        }
+
+        // ================= LOCAL STREAM FUNCTIONS =================
+        function connectLocalCamera() {
+            const ip = document.getElementById('localCameraIp').value;
+            
+            fetch(`http://${ip}/status`)
+                .then(response => response.json())
+                .then(data => {
+                    showToast('Connected to local camera', 'success');
+                    document.getElementById('localStreamStatus').className = 'status-indicator status-online';
+                    document.getElementById('localStreamStatus').innerHTML = '<span>●</span><span>Camera Online</span>';
+                })
+                .catch(error => {
+                    showToast('Cannot connect to local camera', 'error');
+                });
+        }
+
+        function startLocalMjpeg() {
+            const ip = document.getElementById('localCameraIp').value;
+            const img = document.getElementById('localVideoStream');
+            const placeholder = document.getElementById('localPlaceholder');
+            
+            img.src = `http://${ip}/stream?t=${Date.now()}`;
+            img.style.display = 'block';
+            placeholder.style.display = 'none';
+            
+            document.getElementById('localStreamStatus').className = 'status-indicator status-online';
+            document.getElementById('localStreamStatus').innerHTML = '<span>●</span><span>Streaming</span>';
+            
+            showToast('Local stream started', 'success');
+        }
+
+        function stopLocalStream() {
+            const img = document.getElementById('localVideoStream');
+            const placeholder = document.getElementById('localPlaceholder');
+            
+            img.style.display = 'none';
+            img.src = '';
+            placeholder.style.display = 'flex';
+            
+            document.getElementById('localStreamStatus').className = 'status-indicator status-offline';
+            document.getElementById('localStreamStatus').innerHTML = '<span>●</span><span>Offline</span>';
+        }
+
+        function localToggleFlash() {
+            const ip = document.getElementById('localCameraIp').value;
+            fetch(`http://${ip}/control?flash=toggle`)
+                .then(() => showToast('Flash toggled', 'success'))
+                .catch(() => showToast('Failed', 'error'));
+        }
+
+        function localCapture() {
+            const ip = document.getElementById('localCameraIp').value;
+            
+            fetch(`http://${ip}/capture?t=${Date.now()}`)
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    document.getElementById('screenshotImage').src = url;
+                    document.getElementById('screenshotModal').style.display = 'flex';
+                    showToast('Image captured', 'success');
+                })
+                .catch(() => showToast('Capture failed', 'error'));
+        }
+
+        // ================= AUTO CONFIGURE =================
+        function autoConfigure() {
+            document.getElementById('deviceId').value = CONFIG.deviceId;
+            document.getElementById('mqttUsername').value = CONFIG.mqttUsername;
+            document.getElementById('imageTopic').value = CONFIG.topics.image;
+            document.getElementById('controlTopic').value = CONFIG.topics.control;
+            document.getElementById('statusTopic').value = CONFIG.topics.status;
+            
+            showToast('Configured from ESP32 log', 'success');
         }
 
         // ================= INITIALIZATION =================
         document.addEventListener('DOMContentLoaded', () => {
-            showPage('home');
+            // Start on MQTT page
+            showPage('mqtt');
             
-            // Load saved settings
-            const savedIp = localStorage.getItem('cameraIp');
-            if (savedIp) {
-                document.getElementById('cameraIp').value = savedIp;
-                state.cameraIp = savedIp;
-            }
+            // Auto configure
+            autoConfigure();
             
-            // Start status updates
+            // Auto connect after 1 second
+            setTimeout(() => {
+                connectMQTT();
+            }, 1000);
+            
+            // Start FPS monitor
             setInterval(() => {
-                if (state.cameraIp && state.currentPage === 'stream') {
-                    loadDeviceInfo();
+                if (!state.mqttConnected) {
+                    document.getElementById('mqttFps').textContent = '0';
                 }
-            }, 5000);
-        });
-
-        // Save camera IP
-        window.addEventListener('beforeunload', () => {
-            if (state.cameraIp) {
-                localStorage.setItem('cameraIp', state.cameraIp);
-            }
+            }, 1000);
         });
 
         // Expose functions to global scope
         window.showPage = showPage;
-        window.connectDirect = connectDirect;
-        window.startMjpeg = startMjpeg;
-        window.connectWebSocket = connectWebSocket;
-        window.stopStream = stopStream;
-        window.toggleFlash = toggleFlash;
-        window.captureImage = captureImage;
-        window.setQuality = setQuality;
-        window.setFPS = setFPS;
-        window.applyCameraSettings = applyCameraSettings;
-        window.rebootCamera = rebootCamera;
-        window.closeModal = closeModal;
-        window.downloadScreenshot = downloadScreenshot;
-        window.handleBrokerChange = handleBrokerChange;
         window.connectMQTT = connectMQTT;
         window.disconnectMQTT = disconnectMQTT;
         window.subscribeTopics = subscribeTopics;
-        window.scanDevices = scanDevices;
         window.sendMqttCommand = sendMqttCommand;
-        window.selectDevice = selectDevice;
+        window.captureImage = captureImage;
+        window.downloadScreenshot = downloadScreenshot;
+        window.closeModal = closeModal;
+        window.autoConfigure = autoConfigure;
+        window.connectLocalCamera = connectLocalCamera;
+        window.startLocalMjpeg = startLocalMjpeg;
+        window.stopLocalStream = stopLocalStream;
+        window.localToggleFlash = localToggleFlash;
+        window.localCapture = localCapture;
     </script>
 </body>
 </html>
