@@ -474,6 +474,24 @@
             font-size: 12px;
             margin-left: 8px;
         }
+
+        .esp-info {
+            background: #e8f4fd;
+            border: 1px solid #4a6fa5;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        .esp-info-title {
+            font-weight: bold;
+            color: #166088;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
     </style>
 </head>
 <body>
@@ -501,15 +519,20 @@
                 <h2 style="color: #4a6fa5; margin-bottom: 20px;">ESP32-CAM Remote Viewer</h2>
                 <p style="color: #666; max-width: 600px; margin: 0 auto 30px;">
                     View your ESP32-CAM stream from anywhere in the world via MQTT.
-                    Your camera is configured with ID: <strong>cam-000000</strong>
                 </p>
-                <div style="background: #f0f7ff; padding: 20px; border-radius: 10px; max-width: 400px; margin: 0 auto 30px;">
-                    <p style="margin: 5px 0;"><strong>📡 Device Info:</strong></p>
-                    <p style="margin: 5px 0;">IP: 192.168.1.24</p>
-                    <p style="margin: 5px 0;">Device ID: cam-000000</p>
-                    <p style="margin: 5px 0;">RSSI: -50 dBm</p>
-                    <p style="margin: 5px 0;">MQTT: broker.emqx.io</p>
+                
+                <div class="esp-info" style="max-width: 500px; margin: 0 auto 30px;">
+                    <div class="esp-info-title">🔌 ESP32-CAM Connection Info:</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left;">
+                        <div><strong>MQTT Broker:</strong> broker.emqx.io</div>
+                        <div><strong>ESP Port:</strong> 1883 (TCP)</div>
+                        <div><strong>Web Port:</strong> 8083 (WebSocket)</div>
+                        <div><strong>Device ID:</strong> cam-000000</div>
+                        <div><strong>Username:</strong> camtest</div>
+                        <div><strong>Password:</strong> (none)</div>
+                    </div>
                 </div>
+                
                 <button class="btn btn-primary" onclick="showPage('mqtt')" style="width: auto; padding: 12px 30px;">
                     Start Remote Viewing
                 </button>
@@ -523,7 +546,7 @@
                 <div class="video-header">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <span>🌍 Remote Stream (via MQTT)</span>
-                        <span class="badge">cam-000000</span>
+                        <span class="badge" id="currentDeviceId">cam-000000</span>
                     </div>
                     <div class="status-indicator status-offline" id="mqttConnectionStatus">
                         <span>●</span>
@@ -536,10 +559,10 @@
                     <div class="placeholder" id="mqttPlaceholder">
                         <div style="font-size: 64px;">🌐</div>
                         <h3>Waiting for MQTT Stream</h3>
-                        <p id="placeholderMessage">Connect to MQTT broker to view from anywhere</p>
-                        <div style="margin-top: 20px; font-size: 14px; color: #999;">
+                        <p id="placeholderMessage">Connect to view ESP32-CAM stream from anywhere</p>
+                        <div style="margin-top: 20px; font-size: 14px; color: #999;" id="connectionDetails">
                             Device ID: cam-000000<br>
-                            Broker: broker.emqx.io:8083
+                            Broker: broker.emqx.io:8083 (WebSocket)
                         </div>
                     </div>
                 </div>
@@ -578,6 +601,12 @@
                     <button class="btn btn-info" onclick="sendMqttCommand('quality:20')">
                         <span>🎚️</span> Quality 20
                     </button>
+                    <button class="btn btn-primary" onclick="sendMqttCommand('stream_start')">
+                        <span>▶️</span> Start
+                    </button>
+                    <button class="btn btn-danger" onclick="sendMqttCommand('stream_stop')">
+                        <span>⏹️</span> Stop
+                    </button>
                 </div>
             </div>
             
@@ -588,23 +617,37 @@
                 </div>
                 
                 <div class="panel-content">
+                    <!-- Important Info about ESP32 -->
+                    <div class="esp-info">
+                        <div class="esp-info-title">📌 ESP32-CAM Connection</div>
+                        <p style="margin: 5px 0; font-size: 12px;">
+                            <strong>ESP32 uses:</strong> broker.emqx.io:1883 (TCP)<br>
+                            <strong>Web uses:</strong> broker.emqx.io:8083 (WebSocket)<br>
+                            <strong>Same broker, different ports</strong>
+                        </p>
+                    </div>
+                    
                     <!-- Auto-connect info -->
                     <div class="connection-info">
                         <div class="info-row">
                             <span class="info-label">📡 Device ID:</span>
-                            <span class="info-value">cam-000000</span>
+                            <span class="info-value" id="displayDeviceId">cam-000000</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">🌍 Broker:</span>
+                            <span class="info-label">🌍 Broker (Web):</span>
                             <span class="info-value">broker.emqx.io:8083</span>
                         </div>
                         <div class="info-row">
+                            <span class="info-label">🔌 Broker (ESP):</span>
+                            <span class="info-value">broker.emqx.io:1883</span>
+                        </div>
+                        <div class="info-row">
                             <span class="info-label">📋 Image Topic:</span>
-                            <span class="info-value">esp32cam/cam-000000/image</span>
+                            <span class="info-value" id="displayImageTopic">esp32cam/cam-000000/image</span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">🎮 Control Topic:</span>
-                            <span class="info-value">esp32cam/cam-000000/control</span>
+                            <span class="info-value" id="displayControlTopic">esp32cam/cam-000000/control</span>
                         </div>
                     </div>
                     
@@ -616,20 +659,26 @@
                         <div class="input-group">
                             <label class="input-label">MQTT Broker (WebSocket):</label>
                             <select id="mqttBroker" class="input-field">
-                                <option value="broker.emqx.io:8083" selected>broker.emqx.io (Recommended)</option>
-                                <option value="test.mosquitto.org:8081">test.mosquitto.org</option>
-                                <option value="broker.hivemq.com:8000">broker.hivemq.com</option>
+                                <option value="broker.emqx.io:8083" selected>broker.emqx.io:8083 (EMQX - Recommended)</option>
+                                <option value="test.mosquitto.org:8081">test.mosquitto.org:8081</option>
+                                <option value="broker.hivemq.com:8000">broker.hivemq.com:8000</option>
                             </select>
+                            <small style="color: #999; display: block; margin-top: 5px;">ESP32 must use same broker on port 1883</small>
                         </div>
                         
                         <div class="input-group">
-                            <label class="input-label">Device ID:</label>
-                            <input type="text" id="deviceId" class="input-field" value="cam-000000">
+                            <label class="input-label">Device ID (from ESP32):</label>
+                            <input type="text" id="deviceId" class="input-field" value="cam-000000" placeholder="e.g., cam-000000">
                         </div>
                         
                         <div class="input-group">
-                            <label class="input-label">Username (from ESP32 log):</label>
-                            <input type="text" id="mqttUsername" class="input-field" value="camtest">
+                            <label class="input-label">Username (optional):</label>
+                            <input type="text" id="mqttUsername" class="input-field" value="camtest" placeholder="Username if required">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label class="input-label">Password (optional):</label>
+                            <input type="password" id="mqttPassword" class="input-field" value="" placeholder="Password if required">
                         </div>
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0;">
@@ -709,7 +758,7 @@
                                 Get Status
                             </button>
                             <button class="btn btn-danger" onclick="sendMqttCommand('reboot')">
-                                Reboot
+                                Reboot ESP32
                             </button>
                         </div>
                     </div>
@@ -721,10 +770,26 @@
                         
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;" id="deviceStatus">
                             <p><strong>Device:</strong> <span id="statusDeviceId">cam-000000</span></p>
-                            <p><strong>IP:</strong> <span id="statusIp">192.168.1.24</span></p>
-                            <p><strong>RSSI:</strong> <span id="statusRssi">-50 dBm</span></p>
+                            <p><strong>IP:</strong> <span id="statusIp">Waiting...</span></p>
+                            <p><strong>RSSI:</strong> <span id="statusRssi">-</span></p>
                             <p><strong>Uptime:</strong> <span id="statusUptime">-</span></p>
                             <p><strong>Last Seen:</strong> <span id="statusLastSeen">-</span></p>
+                            <p><strong>Free Heap:</strong> <span id="statusHeap">-</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-title">
+                            <span>📋 Connection Guide</span>
+                        </div>
+                        <div style="font-size: 12px; background: #f0f0f0; padding: 10px; border-radius: 8px;">
+                            <p><strong>1. ESP32-CAM must connect to:</strong><br>
+                            Broker: broker.emqx.io:1883</p>
+                            <p><strong>2. Web client connects to:</strong><br>
+                            Broker: broker.emqx.io:8083 (WebSocket)</p>
+                            <p><strong>3. Topics must match:</strong><br>
+                            esp32cam/[device-id]/image<br>
+                            esp32cam/[device-id]/control</p>
                         </div>
                     </div>
                 </div>
@@ -748,9 +813,9 @@
                     <div class="video-container" id="localVideoContainer">
                         <img id="localVideoStream" style="width:100%; display:none;">
                         <div class="placeholder" id="localPlaceholder">
-                            <div>📹</div>
+                            <div style="font-size: 64px;">📹</div>
                             <h3>Local Stream</h3>
-                            <p>Connect to camera on local network (192.168.1.24)</p>
+                            <p>Connect to camera on local network</p>
                         </div>
                     </div>
                     
@@ -760,6 +825,12 @@
                         </button>
                         <button class="btn btn-danger" onclick="stopLocalStream()">
                             <span>⏹️</span> Stop
+                        </button>
+                        <button class="btn btn-warning" onclick="localToggleFlash()">
+                            <span>💡</span> Flash
+                        </button>
+                        <button class="btn btn-success" onclick="localCapture()">
+                            <span>📸</span> Capture
                         </button>
                     </div>
                 </div>
@@ -773,18 +844,18 @@
                         <div class="connection-info">
                             <div class="info-row">
                                 <span class="info-label">📡 Camera IP:</span>
-                                <span class="info-value">192.168.1.24</span>
+                                <span class="info-value" id="localIpDisplay">192.168.1.24</span>
                             </div>
                             <div class="info-row">
-                                <span class="info-label">🔌 WebSocket Port:</span>
-                                <span class="info-value">8080</span>
+                                <span class="info-label">🔌 Stream Port:</span>
+                                <span class="info-value">80</span>
                             </div>
                         </div>
                         
                         <div class="section">
                             <div class="input-group">
-                                <label class="input-label">Camera IP:</label>
-                                <input type="text" id="localCameraIp" class="input-field" value="192.168.1.24">
+                                <label class="input-label">Camera IP Address:</label>
+                                <input type="text" id="localCameraIp" class="input-field" value="192.168.1.24" placeholder="e.g., 192.168.1.24">
                             </div>
                             
                             <button class="btn btn-primary" onclick="connectLocalCamera()">
@@ -793,19 +864,12 @@
                         </div>
                         
                         <div class="section">
-                            <div class="section-title">
-                                <span>⚡ Local Controls</span>
-                            </div>
-                            
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                                <button class="btn btn-warning" onclick="localToggleFlash()">Flash</button>
-                                <button class="btn btn-info" onclick="localCapture()">Capture</button>
-                            </div>
-                        </div>
-                        
-                        <div class="section">
                             <p style="font-size: 12px; color: #999; text-align: center;">
                                 ⚠️ Local stream only works when you're on the same WiFi network as the ESP32-CAM
+                            </p>
+                            <p style="font-size: 12px; color: #4a6fa5; text-align: center; margin-top: 10px;">
+                                <strong>Stream URL:</strong> http://[camera-ip]/stream<br>
+                                <strong>Capture URL:</strong> http://[camera-ip]/capture
                             </p>
                         </div>
                     </div>
@@ -824,51 +888,65 @@
                     <div class="panel-content">
                         <div class="section">
                             <div class="section-title">
-                                <span>📡 ESP32-CAM Info (from log)</span>
+                                <span>📡 ESP32-CAM Configuration</span>
                             </div>
                             
                             <div style="background: #f0f7ff; padding: 20px; border-radius: 10px;">
-                                <p><strong>Device ID:</strong> cam-000000</p>
-                                <p><strong>IP Address:</strong> 192.168.1.24</p>
-                                <p><strong>WiFi:</strong> Tang 3</p>
-                                <p><strong>RSSI:</strong> -50 dBm</p>
-                                <p><strong>MAC:</strong> From device</p>
-                                <p><strong>Firmware:</strong> ESP32-CAM MQTT REMOTE STREAMING v5.1</p>
-                                <p><strong>MQTT Broker:</strong> broker.emqx.io:1883</p>
-                                <p><strong>MQTT Username:</strong> camtest</p>
+                                <h3 style="color: #4a6fa5; margin-bottom: 15px;">ESP32-CAM MQTT Settings</h3>
+                                
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="padding: 8px 0;"><strong>MQTT Broker:</strong></td>
+                                        <td style="padding: 8px 0;">broker.emqx.io</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0;"><strong>MQTT Port (ESP32):</strong></td>
+                                        <td style="padding: 8px 0;">1883 (TCP)</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0;"><strong>MQTT Port (Web):</strong></td>
+                                        <td style="padding: 8px 0;">8083 (WebSocket)</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0;"><strong>Device ID:</strong></td>
+                                        <td style="padding: 8px 0;">cam-000000</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0;"><strong>Username:</strong></td>
+                                        <td style="padding: 8px 0;">camtest</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0;"><strong>Image Topic:</strong></td>
+                                        <td style="padding: 8px 0;">esp32cam/cam-000000/image</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0;"><strong>Control Topic:</strong></td>
+                                        <td style="padding: 8px 0;">esp32cam/cam-000000/control</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0;"><strong>Status Topic:</strong></td>
+                                        <td style="padding: 8px 0;">esp32cam/cam-000000/status</td>
+                                    </tr>
+                                </table>
                             </div>
                         </div>
                         
                         <div class="section">
                             <div class="section-title">
-                                <span>🔧 MQTT Settings</span>
+                                <span>🔧 Arduino IDE Code Snippet</span>
                             </div>
                             
-                            <div class="input-group">
-                                <label class="input-label">MQTT Broker (TCP for ESP32):</label>
-                                <input type="text" class="input-field" value="broker.emqx.io:1883" readonly>
-                            </div>
-                            
-                            <div class="input-group">
-                                <label class="input-label">MQTT Broker (WebSocket for Web):</label>
-                                <input type="text" class="input-field" value="broker.emqx.io:8083" readonly>
-                            </div>
-                            
-                            <div class="input-group">
-                                <label class="input-label">Username:</label>
-                                <input type="text" class="input-field" value="camtest" readonly>
-                            </div>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="section-title">
-                                <span>📋 Topics</span>
-                            </div>
-                            
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                <p><strong>Image:</strong> esp32cam/cam-000000/image</p>
-                                <p><strong>Control:</strong> esp32cam/cam-000000/control</p>
-                                <p><strong>Status:</strong> esp32cam/cam-000000/status</p>
+                            <div style="background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto;">
+                                <pre>
+const char* mqtt_server = "broker.emqx.io";
+const int mqtt_port = 1883;
+const char* device_id = "cam-000000";
+const char* mqtt_user = "camtest";
+
+// Topics
+String image_topic = String("esp32cam/") + device_id + "/image";
+String control_topic = String("esp32cam/") + device_id + "/control";
+String status_topic = String("esp32cam/") + device_id + "/status";</pre>
                             </div>
                         </div>
                         
@@ -878,16 +956,16 @@
                             </div>
                             
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                                <p><strong>MJPEG:</strong> http://192.168.1.24/stream</p>
-                                <p><strong>Capture:</strong> http://192.168.1.24/capture</p>
-                                <p><strong>WebSocket:</strong> ws://192.168.1.24:8080</p>
-                                <p><strong>Web Config:</strong> http://192.168.1.24/config</p>
+                                <p><strong>MJPEG Stream:</strong> http://[camera-ip]/stream</p>
+                                <p><strong>Single Capture:</strong> http://[camera-ip]/capture</p>
+                                <p><strong>Status:</strong> http://[camera-ip]/status</p>
+                                <p><strong>Config:</strong> http://[camera-ip]/config</p>
                             </div>
                         </div>
                         
                         <div class="section">
                             <button class="btn btn-primary" onclick="autoConfigure()">
-                                Auto-Configure from Log
+                                Auto-Configure Defaults
                             </button>
                             <button class="btn btn-info" onclick="showPage('mqtt')" style="margin-top: 10px;">
                                 Go to Remote Stream
@@ -925,6 +1003,7 @@
             deviceId: 'cam-000000',
             localIp: '192.168.1.24',
             mqttBroker: 'broker.emqx.io:8083',
+            mqttBrokerTcp: 'broker.emqx.io:1883',
             mqttUsername: 'camtest',
             topics: {
                 image: 'esp32cam/cam-000000/image',
@@ -942,7 +1021,9 @@
             lastFrameTime: Date.now(),
             fps: 0,
             lastImageUrl: null,
-            deviceStatus: {}
+            deviceStatus: {},
+            reconnectTimer: null,
+            connectionAttempts: 0
         };
 
         // ================= PAGE ROUTING =================
@@ -1007,48 +1088,78 @@
         // ================= MQTT FUNCTIONS =================
         function connectMQTT() {
             const broker = document.getElementById('mqttBroker').value;
-            const deviceId = document.getElementById('deviceId').value;
-            const username = document.getElementById('mqttUsername').value;
+            const deviceId = document.getElementById('deviceId').value.trim();
+            const username = document.getElementById('mqttUsername').value.trim();
+            const password = document.getElementById('mqttPassword').value.trim();
+            
+            if (!deviceId) {
+                showToast('Please enter Device ID', 'warning');
+                return;
+            }
+            
+            // Update display
+            document.getElementById('currentDeviceId').textContent = deviceId;
+            document.getElementById('displayDeviceId').textContent = deviceId;
             
             // Update topics with device ID
-            document.getElementById('imageTopic').value = `esp32cam/${deviceId}/image`;
-            document.getElementById('controlTopic').value = `esp32cam/${deviceId}/control`;
-            document.getElementById('statusTopic').value = `esp32cam/${deviceId}/status`;
+            const imageTopic = `esp32cam/${deviceId}/image`;
+            const controlTopic = `esp32cam/${deviceId}/control`;
+            const statusTopic = `esp32cam/${deviceId}/status`;
             
-            const clientId = 'webclient_' + Math.random().toString(36).substring(7);
+            document.getElementById('imageTopic').value = imageTopic;
+            document.getElementById('controlTopic').value = controlTopic;
+            document.getElementById('statusTopic').value = statusTopic;
+            
+            document.getElementById('displayImageTopic').textContent = imageTopic;
+            document.getElementById('displayControlTopic').textContent = controlTopic;
+            
+            const clientId = 'webclient_' + deviceId + '_' + Math.random().toString(36).substring(7);
             
             const options = {
                 clientId: clientId,
                 keepalive: 60,
                 clean: true,
-                reconnectPeriod: 5000
+                reconnectPeriod: 5000,
+                connectTimeout: 30000
             };
             
             if (username) options.username = username;
+            if (password) options.password = password;
             
-            showToast('Connecting to MQTT...', 'info');
+            showToast(`Connecting to ${broker}...`, 'info');
             
             try {
+                // Disconnect existing client
                 if (state.mqttClient) {
-                    state.mqttClient.end();
+                    state.mqttClient.end(true);
                 }
                 
-                state.mqttClient = mqtt.connect('ws://' + broker, options);
+                // Use ws:// protocol
+                const wsUrl = 'ws://' + broker;
+                console.log('Connecting to:', wsUrl);
+                
+                state.mqttClient = mqtt.connect(wsUrl, options);
                 
                 state.mqttClient.on('connect', () => {
                     state.mqttConnected = true;
+                    state.connectionAttempts = 0;
                     
                     document.getElementById('mqttStatusDot').style.background = '#28a745';
                     document.getElementById('mqttStatusText').innerHTML = 'MQTT: Connected to ' + broker;
-                    document.getElementById('mqttDetail').innerHTML = `Client ID: ${clientId}`;
+                    document.getElementById('mqttDetail').innerHTML = `Client ID: ${clientId}<br>Device: ${deviceId}`;
                     
                     document.getElementById('mqttConnectionStatus').className = 'status-indicator status-online';
                     document.getElementById('mqttConnectionStatus').innerHTML = '<span>●</span><span>Connected</span>';
                     
+                    document.getElementById('connectionDetails').innerHTML = 
+                        `Device ID: ${deviceId}<br>Broker: ${broker} (WebSocket)<br>ESP32 uses: ${CONFIG.mqttBrokerTcp} (TCP)`;
+                    
                     showToast('MQTT connected successfully', 'success');
                     
                     // Auto subscribe
-                    subscribeTopics();
+                    setTimeout(() => {
+                        subscribeTopics();
+                    }, 500);
                 });
                 
                 state.mqttClient.on('message', (topic, message) => {
@@ -1074,7 +1185,9 @@
                         const diff = now - state.lastFrameTime;
                         if (diff > 0) {
                             state.fps = Math.round((1000 / diff) * 10) / 10;
-                            document.getElementById('mqttFps').textContent = state.fps;
+                            if (state.fps < 30) { // Sanity check
+                                document.getElementById('mqttFps').textContent = state.fps;
+                            }
                         }
                         state.lastFrameTime = now;
                         
@@ -1088,13 +1201,16 @@
                         try {
                             const status = JSON.parse(message.toString());
                             updateDeviceStatus(status);
+                            console.log('Status update:', status);
                         } catch (e) {
                             console.log('Status message:', message.toString());
+                            document.getElementById('statusIp').textContent = message.toString();
                         }
                     }
                 });
                 
                 state.mqttClient.on('error', (error) => {
+                    console.error('MQTT error:', error);
                     showToast('MQTT error: ' + error, 'error');
                 });
                 
@@ -1107,15 +1223,17 @@
                 });
                 
             } catch (error) {
+                console.error('Connection error:', error);
                 showToast('MQTT connection failed: ' + error, 'error');
             }
         }
 
         function disconnectMQTT() {
             if (state.mqttClient) {
-                state.mqttClient.end();
+                state.mqttClient.end(true);
                 state.mqttClient = null;
                 state.mqttConnected = false;
+                state.frameCount = 0;
                 
                 document.getElementById('mqttStatusDot').style.background = '#dc3545';
                 document.getElementById('mqttStatusText').innerHTML = 'MQTT: Disconnected';
@@ -1125,6 +1243,11 @@
                 // Show placeholder
                 document.getElementById('mqttVideoStream').style.display = 'none';
                 document.getElementById('mqttPlaceholder').style.display = 'block';
+                
+                // Reset stats
+                document.getElementById('mqttFps').textContent = '0';
+                document.getElementById('mqttFrames').textContent = '0';
+                document.getElementById('mqttFrameSize').textContent = '0';
                 
                 showToast('MQTT disconnected', 'info');
             }
@@ -1140,14 +1263,16 @@
             const controlTopic = document.getElementById('controlTopic').value;
             const statusTopic = document.getElementById('statusTopic').value;
             
-            state.mqttClient.subscribe(imageTopic, (err) => {
+            state.mqttClient.subscribe(imageTopic, { qos: 0 }, (err) => {
                 if (!err) {
                     showToast(`Subscribed to image topic`, 'success');
                     document.getElementById('placeholderMessage').innerHTML = 'Waiting for images from ' + imageTopic;
+                } else {
+                    showToast('Subscribe failed: ' + err, 'error');
                 }
             });
             
-            state.mqttClient.subscribe(statusTopic, (err) => {
+            state.mqttClient.subscribe(statusTopic, { qos: 0 }, (err) => {
                 if (!err) {
                     showToast(`Subscribed to status topic`, 'success');
                 }
@@ -1157,6 +1282,11 @@
             setTimeout(() => {
                 sendMqttCommand('status');
             }, 1000);
+            
+            // Request stream start
+            setTimeout(() => {
+                sendMqttCommand('stream_start');
+            }, 2000);
         }
 
         function sendMqttCommand(command) {
@@ -1168,17 +1298,19 @@
             const controlTopic = document.getElementById('controlTopic').value;
             state.mqttClient.publish(controlTopic, command);
             showToast(`Sent: ${command}`, 'info');
+            console.log(`Published to ${controlTopic}: ${command}`);
         }
 
         function updateDeviceStatus(status) {
             state.deviceStatus = status;
             
-            document.getElementById('statusRssi').textContent = status.rssi || '-50 dBm';
-            document.getElementById('statusUptime').textContent = status.uptime || '-';
-            document.getElementById('statusLastSeen').textContent = new Date().toLocaleTimeString();
-            
+            if (status.rssi) document.getElementById('statusRssi').textContent = status.rssi + ' dBm';
+            if (status.uptime) document.getElementById('statusUptime').textContent = status.uptime;
             if (status.ip) document.getElementById('statusIp').textContent = status.ip;
+            if (status.heap) document.getElementById('statusHeap').textContent = status.heap;
             if (status.rssi) document.getElementById('mqttRssi').textContent = status.rssi;
+            
+            document.getElementById('statusLastSeen').textContent = new Date().toLocaleTimeString();
         }
 
         // ================= CAPTURE FUNCTIONS =================
@@ -1204,16 +1336,28 @@
         // ================= LOCAL STREAM FUNCTIONS =================
         function connectLocalCamera() {
             const ip = document.getElementById('localCameraIp').value;
+            document.getElementById('localIpDisplay').textContent = ip;
+            
+            showToast('Testing connection to ' + ip + '...', 'info');
             
             fetch(`http://${ip}/status`)
-                .then(response => response.json())
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('Camera not responding');
+                })
                 .then(data => {
                     showToast('Connected to local camera', 'success');
                     document.getElementById('localStreamStatus').className = 'status-indicator status-online';
                     document.getElementById('localStreamStatus').innerHTML = '<span>●</span><span>Camera Online</span>';
+                    
+                    // Update status display
+                    if (data.rssi) document.getElementById('statusRssi').textContent = data.rssi;
+                    if (data.ip) document.getElementById('statusIp').textContent = data.ip;
                 })
                 .catch(error => {
-                    showToast('Cannot connect to local camera', 'error');
+                    showToast('Cannot connect to local camera: ' + error, 'error');
                 });
         }
 
@@ -1222,6 +1366,7 @@
             const img = document.getElementById('localVideoStream');
             const placeholder = document.getElementById('localPlaceholder');
             
+            // Add timestamp to avoid caching
             img.src = `http://${ip}/stream?t=${Date.now()}`;
             img.style.display = 'block';
             placeholder.style.display = 'none';
@@ -1248,14 +1393,17 @@
             const ip = document.getElementById('localCameraIp').value;
             fetch(`http://${ip}/control?flash=toggle`)
                 .then(() => showToast('Flash toggled', 'success'))
-                .catch(() => showToast('Failed', 'error'));
+                .catch(() => showToast('Failed to toggle flash', 'error'));
         }
 
         function localCapture() {
             const ip = document.getElementById('localCameraIp').value;
             
             fetch(`http://${ip}/capture?t=${Date.now()}`)
-                .then(response => response.blob())
+                .then(response => {
+                    if (!response.ok) throw new Error('Capture failed');
+                    return response.blob();
+                })
                 .then(blob => {
                     const url = URL.createObjectURL(blob);
                     document.getElementById('screenshotImage').src = url;
@@ -1269,11 +1417,28 @@
         function autoConfigure() {
             document.getElementById('deviceId').value = CONFIG.deviceId;
             document.getElementById('mqttUsername').value = CONFIG.mqttUsername;
-            document.getElementById('imageTopic').value = CONFIG.topics.image;
-            document.getElementById('controlTopic').value = CONFIG.topics.control;
-            document.getElementById('statusTopic').value = CONFIG.topics.status;
+            document.getElementById('mqttPassword').value = '';
             
-            showToast('Configured from ESP32 log', 'success');
+            const imageTopic = `esp32cam/${CONFIG.deviceId}/image`;
+            const controlTopic = `esp32cam/${CONFIG.deviceId}/control`;
+            const statusTopic = `esp32cam/${CONFIG.deviceId}/status`;
+            
+            document.getElementById('imageTopic').value = imageTopic;
+            document.getElementById('controlTopic').value = controlTopic;
+            document.getElementById('statusTopic').value = statusTopic;
+            
+            document.getElementById('localCameraIp').value = CONFIG.localIp;
+            
+            document.getElementById('displayImageTopic').textContent = imageTopic;
+            document.getElementById('displayControlTopic').textContent = controlTopic;
+            document.getElementById('currentDeviceId').textContent = CONFIG.deviceId;
+            document.getElementById('displayDeviceId').textContent = CONFIG.deviceId;
+            
+            showToast('Configured with default settings', 'success');
+            
+            // Update connection details
+            document.getElementById('connectionDetails').innerHTML = 
+                `Device ID: ${CONFIG.deviceId}<br>Broker: ${CONFIG.mqttBroker} (WebSocket)<br>ESP32 uses: ${CONFIG.mqttBrokerTcp} (TCP)`;
         }
 
         // ================= INITIALIZATION =================
@@ -1284,7 +1449,7 @@
             // Auto configure
             autoConfigure();
             
-            // Auto connect after 1 second
+            // Auto connect after 1 second (if user hasn't interacted)
             setTimeout(() => {
                 connectMQTT();
             }, 1000);
@@ -1294,7 +1459,19 @@
                 if (!state.mqttConnected) {
                     document.getElementById('mqttFps').textContent = '0';
                 }
+                
+                // Reset frame count if too high (prevents overflow)
+                if (state.frameCount > 10000) {
+                    state.frameCount = 0;
+                }
             }, 1000);
+            
+            // Check connection status periodically
+            setInterval(() => {
+                if (state.mqttClient && !state.mqttConnected) {
+                    document.getElementById('mqttFps').textContent = '0';
+                }
+            }, 5000);
         });
 
         // Expose functions to global scope
