@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ESP32-CAM Remote Viewer - MQTT</title>
+    <title>ESP32-CAM Remote Viewer - HiveMQ</title>
     
     <!-- MQTT Library -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
@@ -226,6 +226,7 @@
         .btn-warning { background: #ffc107; color: #333; }
         .btn-info { background: #17a2b8; color: white; }
         .btn-mqtt { background: #3caea3; color: white; }
+        .btn-hivemq { background: #1b5e20; color: white; }
 
         .btn:hover {
             transform: translateY(-2px);
@@ -492,6 +493,15 @@
             align-items: center;
             gap: 5px;
         }
+
+        .hivemq-badge {
+            background: #1b5e20;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -499,6 +509,7 @@
         <div class="nav-container">
             <div class="logo">
                 <span>📷 ESP32-CAM Remote Viewer</span>
+                <span class="hivemq-badge">HiveMQ Ready</span>
             </div>
             <div class="nav-links">
                 <a href="#" class="nav-link" onclick="showPage('home')">Home</a>
@@ -518,18 +529,18 @@
                 </div>
                 <h2 style="color: #4a6fa5; margin-bottom: 20px;">ESP32-CAM Remote Viewer</h2>
                 <p style="color: #666; max-width: 600px; margin: 0 auto 30px;">
-                    View your ESP32-CAM stream from anywhere in the world via MQTT.
+                    View your ESP32-CAM stream from anywhere in the world via MQTT with HiveMQ Cloud.
                 </p>
                 
                 <div class="esp-info" style="max-width: 500px; margin: 0 auto 30px;">
-                    <div class="esp-info-title">🔌 ESP32-CAM Connection Info:</div>
+                    <div class="esp-info-title">🔌 HiveMQ Cloud Connection Info:</div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left;">
-                        <div><strong>MQTT Broker:</strong> broker.emqx.io</div>
-                        <div><strong>ESP Port:</strong> 1883 (TCP)</div>
-                        <div><strong>Web Port:</strong> 8083 (WebSocket)</div>
+                        <div><strong>MQTT Broker:</strong> your-cluster.mqtt.hivemq.cloud</div>
+                        <div><strong>ESP Port:</strong> 8883 (TLS)</div>
+                        <div><strong>Web Port:</strong> 8884 (WebSocket TLS)</div>
                         <div><strong>Device ID:</strong> cam-000000</div>
-                        <div><strong>Username:</strong> camtest</div>
-                        <div><strong>Password:</strong> (none)</div>
+                        <div><strong>Username:</strong> (required)</div>
+                        <div><strong>Password:</strong> (required)</div>
                     </div>
                 </div>
                 
@@ -545,7 +556,7 @@
             <div class="video-panel">
                 <div class="video-header">
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <span>🌍 Remote Stream (via MQTT)</span>
+                        <span>🌍 Remote Stream (via HiveMQ)</span>
                         <span class="badge" id="currentDeviceId">cam-000000</span>
                     </div>
                     <div class="status-indicator status-offline" id="mqttConnectionStatus">
@@ -558,11 +569,11 @@
                     <img id="mqttVideoStream" style="width:100%; display: none;">
                     <div class="placeholder" id="mqttPlaceholder">
                         <div style="font-size: 64px;">🌐</div>
-                        <h3>Waiting for MQTT Stream</h3>
-                        <p id="placeholderMessage">Connect to view ESP32-CAM stream from anywhere</p>
+                        <h3>Waiting for HiveMQ Stream</h3>
+                        <p id="placeholderMessage">Connect to HiveMQ Cloud to view ESP32-CAM stream</p>
                         <div style="margin-top: 20px; font-size: 14px; color: #999;" id="connectionDetails">
                             Device ID: cam-000000<br>
-                            Broker: broker.emqx.io:8083 (WebSocket)
+                            Broker: your-cluster.mqtt.hivemq.cloud:8884 (WebSocket TLS)
                         </div>
                     </div>
                 </div>
@@ -613,17 +624,17 @@
             <!-- Control Panel -->
             <div class="control-panel">
                 <div class="panel-header">
-                    <span>🌐 MQTT Remote Control</span>
+                    <span>🌐 HiveMQ Remote Control</span>
                 </div>
                 
                 <div class="panel-content">
                     <!-- Important Info about ESP32 -->
                     <div class="esp-info">
-                        <div class="esp-info-title">📌 ESP32-CAM Connection</div>
+                        <div class="esp-info-title">📌 HiveMQ Cloud Connection</div>
                         <p style="margin: 5px 0; font-size: 12px;">
-                            <strong>ESP32 uses:</strong> broker.emqx.io:1883 (TCP)<br>
-                            <strong>Web uses:</strong> broker.emqx.io:8083 (WebSocket)<br>
-                            <strong>Same broker, different ports</strong>
+                            <strong>ESP32 uses:</strong> your-cluster.mqtt.hivemq.cloud:8883 (TLS)<br>
+                            <strong>Web uses:</strong> your-cluster.mqtt.hivemq.cloud:8884 (WebSocket TLS)<br>
+                            <strong>Username/Password required</strong>
                         </p>
                     </div>
                     
@@ -635,11 +646,11 @@
                         </div>
                         <div class="info-row">
                             <span class="info-label">🌍 Broker (Web):</span>
-                            <span class="info-value">broker.emqx.io:8083</span>
+                            <span class="info-value" id="displayBroker">cluster.mqtt.hivemq.cloud:8884</span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">🔌 Broker (ESP):</span>
-                            <span class="info-value">broker.emqx.io:1883</span>
+                            <span class="info-value">cluster.mqtt.hivemq.cloud:8883</span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">📋 Image Topic:</span>
@@ -653,17 +664,21 @@
                     
                     <div class="section">
                         <div class="section-title">
-                            <span>🔌 MQTT Connection</span>
+                            <span>🔌 HiveMQ Connection</span>
                         </div>
                         
                         <div class="input-group">
-                            <label class="input-label">MQTT Broker (WebSocket):</label>
-                            <select id="mqttBroker" class="input-field">
-                                <option value="broker.emqx.io:8083" selected>broker.emqx.io:8083 (EMQX - Recommended)</option>
-                                <option value="test.mosquitto.org:8081">test.mosquitto.org:8081</option>
-                                <option value="broker.hivemq.com:8000">broker.hivemq.com:8000</option>
+                            <label class="input-label">HiveMQ Cluster URL:</label>
+                            <input type="text" id="hivemqCluster" class="input-field" value="your-cluster.mqtt.hivemq.cloud" placeholder="e.g., abc123.mqtt.hivemq.cloud">
+                            <small style="color: #999; display: block; margin-top: 5px;">From HiveMQ Cloud dashboard</small>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label class="input-label">Port:</label>
+                            <select id="mqttPort" class="input-field">
+                                <option value="8884" selected>8884 (WebSocket TLS - Recommended)</option>
+                                <option value="8000">8000 (WebSocket - Unsecure)</option>
                             </select>
-                            <small style="color: #999; display: block; margin-top: 5px;">ESP32 must use same broker on port 1883</small>
                         </div>
                         
                         <div class="input-group">
@@ -672,18 +687,18 @@
                         </div>
                         
                         <div class="input-group">
-                            <label class="input-label">Username (optional):</label>
-                            <input type="text" id="mqttUsername" class="input-field" value="camtest" placeholder="Username if required">
+                            <label class="input-label">Username (REQUIRED):</label>
+                            <input type="text" id="mqttUsername" class="input-field" value="camtest" placeholder="HiveMQ username">
                         </div>
                         
                         <div class="input-group">
-                            <label class="input-label">Password (optional):</label>
-                            <input type="password" id="mqttPassword" class="input-field" value="" placeholder="Password if required">
+                            <label class="input-label">Password (REQUIRED):</label>
+                            <input type="password" id="mqttPassword" class="input-field" value="" placeholder="HiveMQ password">
                         </div>
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 15px 0;">
-                            <button class="btn btn-success" onclick="connectMQTT()">
-                                Connect
+                            <button class="btn btn-hivemq" onclick="connectMQTT()">
+                                Connect to HiveMQ
                             </button>
                             <button class="btn btn-danger" onclick="disconnectMQTT()">
                                 Disconnect
@@ -693,7 +708,7 @@
                         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;" id="mqttStatus">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #dc3545;" id="mqttStatusDot"></span>
-                                <span id="mqttStatusText">MQTT: Disconnected</span>
+                                <span id="mqttStatusText">HiveMQ: Disconnected</span>
                             </div>
                             <div style="font-size: 12px; margin-top: 8px; color: #666;" id="mqttDetail"></div>
                         </div>
@@ -705,18 +720,23 @@
                         </div>
                         
                         <div class="input-group">
+                            <label class="input-label">Topic Prefix:</label>
+                            <input type="text" id="topicPrefix" class="input-field" value="esp32cam">
+                        </div>
+                        
+                        <div class="input-group">
                             <label class="input-label">Image Topic:</label>
-                            <input type="text" id="imageTopic" class="input-field" value="esp32cam/cam-000000/image">
+                            <input type="text" id="imageTopic" class="input-field" value="esp32cam/cam-000000/image" readonly>
                         </div>
                         
                         <div class="input-group">
                             <label class="input-label">Control Topic:</label>
-                            <input type="text" id="controlTopic" class="input-field" value="esp32cam/cam-000000/control">
+                            <input type="text" id="controlTopic" class="input-field" value="esp32cam/cam-000000/control" readonly>
                         </div>
                         
                         <div class="input-group">
                             <label class="input-label">Status Topic:</label>
-                            <input type="text" id="statusTopic" class="input-field" value="esp32cam/cam-000000/status">
+                            <input type="text" id="statusTopic" class="input-field" value="esp32cam/cam-000000/status" readonly>
                         </div>
                         
                         <button class="btn btn-primary" onclick="subscribeTopics()" style="margin-top: 10px;">
@@ -780,16 +800,19 @@
                     
                     <div class="section">
                         <div class="section-title">
-                            <span>📋 Connection Guide</span>
+                            <span>📋 HiveMQ Setup Guide</span>
                         </div>
                         <div style="font-size: 12px; background: #f0f0f0; padding: 10px; border-radius: 8px;">
-                            <p><strong>1. ESP32-CAM must connect to:</strong><br>
-                            Broker: broker.emqx.io:1883</p>
-                            <p><strong>2. Web client connects to:</strong><br>
-                            Broker: broker.emqx.io:8083 (WebSocket)</p>
-                            <p><strong>3. Topics must match:</strong><br>
-                            esp32cam/[device-id]/image<br>
-                            esp32cam/[device-id]/control</p>
+                            <p><strong>1. Get HiveMQ Cloud Free:</strong><br>
+                            https://www.hivemq.com/mqtt-cloud-broker/</p>
+                            <p><strong>2. Create cluster → get URL:</strong><br>
+                            abc123.mqtt.hivemq.cloud</p>
+                            <p><strong>3. Create user in Access Management:</strong><br>
+                            Username & password required</p>
+                            <p><strong>4. ESP32 uses:</strong><br>
+                            Port 8883 (TLS) with username/password</p>
+                            <p><strong>5. Web uses:</strong><br>
+                            Port 8884 (WebSocket TLS) with same credentials</p>
                         </div>
                     </div>
                 </div>
@@ -888,24 +911,24 @@
                     <div class="panel-content">
                         <div class="section">
                             <div class="section-title">
-                                <span>📡 ESP32-CAM Configuration</span>
+                                <span>📡 HiveMQ Configuration</span>
                             </div>
                             
                             <div style="background: #f0f7ff; padding: 20px; border-radius: 10px;">
-                                <h3 style="color: #4a6fa5; margin-bottom: 15px;">ESP32-CAM MQTT Settings</h3>
+                                <h3 style="color: #4a6fa5; margin-bottom: 15px;">HiveMQ Cloud Settings</h3>
                                 
                                 <table style="width: 100%; border-collapse: collapse;">
                                     <tr>
                                         <td style="padding: 8px 0;"><strong>MQTT Broker:</strong></td>
-                                        <td style="padding: 8px 0;">broker.emqx.io</td>
+                                        <td style="padding: 8px 0;">your-cluster.mqtt.hivemq.cloud</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 8px 0;"><strong>MQTT Port (ESP32):</strong></td>
-                                        <td style="padding: 8px 0;">1883 (TCP)</td>
+                                        <td style="padding: 8px 0;">8883 (TLS)</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 8px 0;"><strong>MQTT Port (Web):</strong></td>
-                                        <td style="padding: 8px 0;">8083 (WebSocket)</td>
+                                        <td style="padding: 8px 0;">8884 (WebSocket TLS)</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 8px 0;"><strong>Device ID:</strong></td>
@@ -913,7 +936,11 @@
                                     </tr>
                                     <tr>
                                         <td style="padding: 8px 0;"><strong>Username:</strong></td>
-                                        <td style="padding: 8px 0;">camtest</td>
+                                        <td style="padding: 8px 0;">(required)</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px 0;"><strong>Password:</strong></td>
+                                        <td style="padding: 8px 0;">(required)</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 8px 0;"><strong>Image Topic:</strong></td>
@@ -933,20 +960,29 @@
                         
                         <div class="section">
                             <div class="section-title">
-                                <span>🔧 Arduino IDE Code Snippet</span>
+                                <span>🔧 Arduino IDE Code Snippet (HiveMQ)</span>
                             </div>
                             
                             <div style="background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; overflow-x: auto;">
                                 <pre>
-const char* mqtt_server = "broker.emqx.io";
-const int mqtt_port = 1883;
-const char* device_id = "cam-000000";
-const char* mqtt_user = "camtest";
+#include &lt;WiFiClientSecure.h&gt;
 
-// Topics
-String image_topic = String("esp32cam/") + device_id + "/image";
-String control_topic = String("esp32cam/") + device_id + "/control";
-String status_topic = String("esp32cam/") + device_id + "/status";</pre>
+const char* mqtt_server = "592ddd3240fc42adaf260762fa6952a1.s1.eu.hivemq.cloud";
+const int mqtt_port = 8883;
+const char* mqtt_user = "camtest";
+const char* mqtt_pass = "Camtest@123";
+const char* device_id = "cam-000000";
+
+WiFiClientSecure espClient;
+PubSubClient mqttClient(espClient);
+
+void setup() {
+  espClient.setInsecure(); // For testing
+  // Topics
+  String image_topic = String("esp32cam/") + device_id + "/image";
+  String control_topic = String("esp32cam/") + device_id + "/control";
+  String status_topic = String("esp32cam/") + device_id + "/status";
+}</pre>
                             </div>
                         </div>
                         
@@ -967,8 +1003,8 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
                             <button class="btn btn-primary" onclick="autoConfigure()">
                                 Auto-Configure Defaults
                             </button>
-                            <button class="btn btn-info" onclick="showPage('mqtt')" style="margin-top: 10px;">
-                                Go to Remote Stream
+                            <button class="btn btn-hivemq" onclick="showPage('mqtt')" style="margin-top: 10px;">
+                                Go to HiveMQ Stream
                             </button>
                         </div>
                     </div>
@@ -1002,8 +1038,9 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
         const CONFIG = {
             deviceId: 'cam-000000',
             localIp: '192.168.1.24',
-            mqttBroker: 'broker.emqx.io:8083',
-            mqttBrokerTcp: 'broker.emqx.io:1883',
+            hivemqCluster: 'your-cluster.mqtt.hivemq.cloud',
+            hivemqPort: 8884,
+            hivemqPortTcp: 8883,
             mqttUsername: 'camtest',
             topics: {
                 image: 'esp32cam/cam-000000/image',
@@ -1087,10 +1124,22 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
 
         // ================= MQTT FUNCTIONS =================
         function connectMQTT() {
-            const broker = document.getElementById('mqttBroker').value;
+            const cluster = document.getElementById('hivemqCluster').value.trim();
+            const port = document.getElementById('mqttPort').value;
             const deviceId = document.getElementById('deviceId').value.trim();
             const username = document.getElementById('mqttUsername').value.trim();
             const password = document.getElementById('mqttPassword').value.trim();
+            const topicPrefix = document.getElementById('topicPrefix').value.trim() || 'esp32cam';
+            
+            if (!cluster) {
+                showToast('Please enter HiveMQ cluster URL', 'warning');
+                return;
+            }
+            
+            if (!username || !password) {
+                showToast('HiveMQ requires username and password', 'warning');
+                return;
+            }
             
             if (!deviceId) {
                 showToast('Please enter Device ID', 'warning');
@@ -1100,11 +1149,12 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
             // Update display
             document.getElementById('currentDeviceId').textContent = deviceId;
             document.getElementById('displayDeviceId').textContent = deviceId;
+            document.getElementById('displayBroker').textContent = `${cluster}:${port}`;
             
             // Update topics with device ID
-            const imageTopic = `esp32cam/${deviceId}/image`;
-            const controlTopic = `esp32cam/${deviceId}/control`;
-            const statusTopic = `esp32cam/${deviceId}/status`;
+            const imageTopic = `${topicPrefix}/${deviceId}/image`;
+            const controlTopic = `${topicPrefix}/${deviceId}/control`;
+            const statusTopic = `${topicPrefix}/${deviceId}/status`;
             
             document.getElementById('imageTopic').value = imageTopic;
             document.getElementById('controlTopic').value = controlTopic;
@@ -1120,13 +1170,13 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
                 keepalive: 60,
                 clean: true,
                 reconnectPeriod: 5000,
-                connectTimeout: 30000
+                connectTimeout: 30000,
+                username: username,
+                password: password,
+                rejectUnauthorized: false // For self-signed certs
             };
             
-            if (username) options.username = username;
-            if (password) options.password = password;
-            
-            showToast(`Connecting to ${broker}...`, 'info');
+            showToast(`Connecting to HiveMQ ${cluster}:${port}...`, 'info');
             
             try {
                 // Disconnect existing client
@@ -1134,9 +1184,14 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
                     state.mqttClient.end(true);
                 }
                 
-                // Use ws:// protocol
-                const wsUrl = 'ws://' + broker;
-                console.log('Connecting to:', wsUrl);
+                // Use correct protocol based on port
+                // HiveMQ typically uses wss:// for TLS (port 8884) and ws:// for non-TLS (8000)
+                const protocol = (port === '8884' || port === '8883') ? 'wss://' : 'ws://';
+                // HiveMQ WebSocket path is usually /mqtt
+                const wsUrl = `${protocol}${cluster}:${port}/mqtt`;
+                
+                console.log('Connecting to HiveMQ:', wsUrl);
+                console.log('Username:', username);
                 
                 state.mqttClient = mqtt.connect(wsUrl, options);
                 
@@ -1145,16 +1200,16 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
                     state.connectionAttempts = 0;
                     
                     document.getElementById('mqttStatusDot').style.background = '#28a745';
-                    document.getElementById('mqttStatusText').innerHTML = 'MQTT: Connected to ' + broker;
-                    document.getElementById('mqttDetail').innerHTML = `Client ID: ${clientId}<br>Device: ${deviceId}`;
+                    document.getElementById('mqttStatusText').innerHTML = 'HiveMQ: Connected to ' + cluster;
+                    document.getElementById('mqttDetail').innerHTML = `Client ID: ${clientId}<br>Device: ${deviceId}<br>Protocol: ${protocol}`;
                     
                     document.getElementById('mqttConnectionStatus').className = 'status-indicator status-online';
                     document.getElementById('mqttConnectionStatus').innerHTML = '<span>●</span><span>Connected</span>';
                     
                     document.getElementById('connectionDetails').innerHTML = 
-                        `Device ID: ${deviceId}<br>Broker: ${broker} (WebSocket)<br>ESP32 uses: ${CONFIG.mqttBrokerTcp} (TCP)`;
+                        `Device ID: ${deviceId}<br>Broker: ${cluster}:${port} (WebSocket TLS)<br>ESP32 uses: ${cluster}:8883 (TLS)`;
                     
-                    showToast('MQTT connected successfully', 'success');
+                    showToast('HiveMQ connected successfully', 'success');
                     
                     // Auto subscribe
                     setTimeout(() => {
@@ -1210,21 +1265,30 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
                 });
                 
                 state.mqttClient.on('error', (error) => {
-                    console.error('MQTT error:', error);
-                    showToast('MQTT error: ' + error, 'error');
+                    console.error('HiveMQ error:', error);
+                    
+                    if (error.toString().includes('Not authorized') || error.toString().includes('bad user name or password')) {
+                        showToast('HiveMQ auth failed: Check username/password', 'error');
+                    } else if (error.toString().includes('ECONNREFUSED')) {
+                        showToast('HiveMQ connection refused: Check cluster URL and port', 'error');
+                    } else if (error.toString().includes('SecurityError')) {
+                        showToast('Security Error: Try using port 8884 with wss://', 'error');
+                    } else {
+                        showToast('HiveMQ error: ' + error, 'error');
+                    }
                 });
                 
                 state.mqttClient.on('close', () => {
                     state.mqttConnected = false;
                     document.getElementById('mqttStatusDot').style.background = '#dc3545';
-                    document.getElementById('mqttStatusText').innerHTML = 'MQTT: Disconnected';
+                    document.getElementById('mqttStatusText').innerHTML = 'HiveMQ: Disconnected';
                     document.getElementById('mqttConnectionStatus').className = 'status-indicator status-offline';
                     document.getElementById('mqttConnectionStatus').innerHTML = '<span>●</span><span>Disconnected</span>';
                 });
                 
             } catch (error) {
                 console.error('Connection error:', error);
-                showToast('MQTT connection failed: ' + error, 'error');
+                showToast('HiveMQ connection failed: ' + error, 'error');
             }
         }
 
@@ -1236,7 +1300,7 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
                 state.frameCount = 0;
                 
                 document.getElementById('mqttStatusDot').style.background = '#dc3545';
-                document.getElementById('mqttStatusText').innerHTML = 'MQTT: Disconnected';
+                document.getElementById('mqttStatusText').innerHTML = 'HiveMQ: Disconnected';
                 document.getElementById('mqttConnectionStatus').className = 'status-indicator status-offline';
                 document.getElementById('mqttConnectionStatus').innerHTML = '<span>●</span><span>Disconnected</span>';
                 
@@ -1249,13 +1313,13 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
                 document.getElementById('mqttFrames').textContent = '0';
                 document.getElementById('mqttFrameSize').textContent = '0';
                 
-                showToast('MQTT disconnected', 'info');
+                showToast('HiveMQ disconnected', 'info');
             }
         }
 
         function subscribeTopics() {
             if (!state.mqttClient || !state.mqttConnected) {
-                showToast('MQTT not connected', 'warning');
+                showToast('HiveMQ not connected', 'warning');
                 return;
             }
             
@@ -1291,7 +1355,7 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
 
         function sendMqttCommand(command) {
             if (!state.mqttClient || !state.mqttConnected) {
-                showToast('MQTT not connected', 'warning');
+                showToast('HiveMQ not connected', 'warning');
                 return;
             }
             
@@ -1319,7 +1383,7 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
                 sendMqttCommand('capture');
                 showToast('Capture command sent', 'success');
             } else {
-                showToast('Not connected to MQTT', 'warning');
+                showToast('Not connected to HiveMQ', 'warning');
             }
         }
 
@@ -1415,9 +1479,11 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
 
         // ================= AUTO CONFIGURE =================
         function autoConfigure() {
+            document.getElementById('hivemqCluster').value = CONFIG.hivemqCluster;
             document.getElementById('deviceId').value = CONFIG.deviceId;
             document.getElementById('mqttUsername').value = CONFIG.mqttUsername;
             document.getElementById('mqttPassword').value = '';
+            document.getElementById('topicPrefix').value = 'esp32cam';
             
             const imageTopic = `esp32cam/${CONFIG.deviceId}/image`;
             const controlTopic = `esp32cam/${CONFIG.deviceId}/control`;
@@ -1433,12 +1499,13 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
             document.getElementById('displayControlTopic').textContent = controlTopic;
             document.getElementById('currentDeviceId').textContent = CONFIG.deviceId;
             document.getElementById('displayDeviceId').textContent = CONFIG.deviceId;
+            document.getElementById('displayBroker').textContent = `${CONFIG.hivemqCluster}:${CONFIG.hivemqPort}`;
             
-            showToast('Configured with default settings', 'success');
+            showToast('Configured with HiveMQ defaults', 'success');
             
             // Update connection details
             document.getElementById('connectionDetails').innerHTML = 
-                `Device ID: ${CONFIG.deviceId}<br>Broker: ${CONFIG.mqttBroker} (WebSocket)<br>ESP32 uses: ${CONFIG.mqttBrokerTcp} (TCP)`;
+                `Device ID: ${CONFIG.deviceId}<br>Broker: ${CONFIG.hivemqCluster}:${CONFIG.hivemqPort} (WebSocket TLS)<br>ESP32 uses: ${CONFIG.hivemqCluster}:${CONFIG.hivemqPortTcp} (TLS)`;
         }
 
         // ================= INITIALIZATION =================
@@ -1449,10 +1516,11 @@ String status_topic = String("esp32cam/") + device_id + "/status";</pre>
             // Auto configure
             autoConfigure();
             
-            // Auto connect after 1 second (if user hasn't interacted)
+            // Auto connect after 2 seconds (give user time to see settings)
             setTimeout(() => {
-                connectMQTT();
-            }, 1000);
+                // Don't auto-connect to avoid errors without password
+                // connectMQTT();
+            }, 2000);
             
             // Start FPS monitor
             setInterval(() => {
