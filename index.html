@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     
     <style>
+        /* Giữ nguyên phần CSS của bạn */
         * {
             margin: 0;
             padding: 0;
@@ -535,11 +536,11 @@
                 <div class="esp-info" style="max-width: 500px; margin: 0 auto 30px;">
                     <div class="esp-info-title">🔌 HiveMQ Cloud Connection Info:</div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left;">
-                        <div><strong>MQTT Broker:</strong> your-cluster.mqtt.hivemq.cloud</div>
+                        <div><strong>MQTT Broker:</strong> 592ddd3240fc42adaf260762fa6952a1.s1.eu.hivemq.cloud</div>
                         <div><strong>ESP Port:</strong> 8883 (TLS)</div>
                         <div><strong>Web Port:</strong> 8884 (WebSocket TLS)</div>
                         <div><strong>Device ID:</strong> cam-000000</div>
-                        <div><strong>Username:</strong> (required)</div>
+                        <div><strong>Username:</strong> camtest</div>
                         <div><strong>Password:</strong> (required)</div>
                     </div>
                 </div>
@@ -573,7 +574,7 @@
                         <p id="placeholderMessage">Connect to HiveMQ Cloud to view ESP32-CAM stream</p>
                         <div style="margin-top: 20px; font-size: 14px; color: #999;" id="connectionDetails">
                             Device ID: cam-000000<br>
-                            Broker: your-cluster.mqtt.hivemq.cloud:8884 (WebSocket TLS)
+                            Broker: 592ddd3240fc42adaf260762fa6952a1.s1.eu.hivemq.cloud:8884 (WebSocket TLS)
                         </div>
                     </div>
                 </div>
@@ -632,8 +633,8 @@
                     <div class="esp-info">
                         <div class="esp-info-title">📌 HiveMQ Cloud Connection</div>
                         <p style="margin: 5px 0; font-size: 12px;">
-                            <strong>ESP32 uses:</strong> your-cluster.mqtt.hivemq.cloud:8883 (TLS)<br>
-                            <strong>Web uses:</strong> your-cluster.mqtt.hivemq.cloud:8884 (WebSocket TLS)<br>
+                            <strong>ESP32 uses:</strong> 592ddd3240fc42adaf260762fa6952a1.s1.eu.hivemq.cloud:8883 (TLS)<br>
+                            <strong>Web uses:</strong> 592ddd3240fc42adaf260762fa6952a1.s1.eu.hivemq.cloud:8884 (WebSocket TLS)<br>
                             <strong>Username/Password required</strong>
                         </p>
                     </div>
@@ -646,11 +647,11 @@
                         </div>
                         <div class="info-row">
                             <span class="info-label">🌍 Broker (Web):</span>
-                            <span class="info-value" id="displayBroker">cluster.mqtt.hivemq.cloud:8884</span>
+                            <span class="info-value" id="displayBroker">592ddd3240fc42adaf260762fa6952a1.s1.eu.hivemq.cloud:8884</span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">🔌 Broker (ESP):</span>
-                            <span class="info-value">cluster.mqtt.hivemq.cloud:8883</span>
+                            <span class="info-value">592ddd3240fc42adaf260762fa6952a1.s1.eu.hivemq.cloud:8883</span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">📋 Image Topic:</span>
@@ -669,7 +670,7 @@
                         
                         <div class="input-group">
                             <label class="input-label">HiveMQ Cluster URL:</label>
-                            <input type="text" id="hivemqCluster" class="input-field" value="your-cluster.mqtt.hivemq.cloud" placeholder="e.g., abc123.mqtt.hivemq.cloud">
+                            <input type="text" id="hivemqCluster" class="input-field" value="592ddd3240fc42adaf260762fa6952a1.s1.eu.hivemq.cloud" placeholder="e.g., abc123.mqtt.hivemq.cloud">
                             <small style="color: #999; display: block; margin-top: 5px;">From HiveMQ Cloud dashboard</small>
                         </div>
                         
@@ -920,7 +921,7 @@
                                 <table style="width: 100%; border-collapse: collapse;">
                                     <tr>
                                         <td style="padding: 8px 0;"><strong>MQTT Broker:</strong></td>
-                                        <td style="padding: 8px 0;">your-cluster.mqtt.hivemq.cloud</td>
+                                        <td style="padding: 8px 0;">592ddd3240fc42adaf260762fa6952a1.s1.eu.hivemq.cloud</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 8px 0;"><strong>MQTT Port (ESP32):</strong></td>
@@ -936,7 +937,7 @@
                                     </tr>
                                     <tr>
                                         <td style="padding: 8px 0;"><strong>Username:</strong></td>
-                                        <td style="padding: 8px 0;">(required)</td>
+                                        <td style="padding: 8px 0;">camtest</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 8px 0;"><strong>Password:</strong></td>
@@ -1038,12 +1039,12 @@ void setup() {
         const CONFIG = {
             deviceId: 'cam-000000',
             localIp: '192.168.1.24',
-            hivemqCluster: '',
+            hivemqCluster: '592ddd3240fc42adaf260762fa6952a1.s1.eu.hivemq.cloud',
             hivemqPort: 8884,
             hivemqPortTcp: 8883,
             mqttUsername: 'camtest',
             topics: {
-                image: 'esp32cam/cam-000000/image',592ddd3240fc42adaf260762fa6952a1.s1.eu.hivemq.cloud
+                image: 'esp32cam/cam-000000/image',
                 control: 'esp32cam/cam-000000/control',
                 status: 'esp32cam/cam-000000/status'
             }
